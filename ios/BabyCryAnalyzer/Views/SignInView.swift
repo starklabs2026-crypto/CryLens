@@ -24,7 +24,7 @@ struct SignInView: View {
                         .font(.largeTitle.bold())
                         .foregroundStyle(.white)
 
-                    Text("Sign in to continue")
+                    Text("Your baby's voice, understood.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -84,6 +84,12 @@ struct SignInView: View {
                     }
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+
+                    Text("Your data is stored securely and never shared.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
                 }
                 .padding(22)
                 .background(.regularMaterial, in: .rect(cornerRadius: 28))

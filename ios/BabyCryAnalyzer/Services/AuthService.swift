@@ -85,6 +85,10 @@ class AuthService {
         currentUserID = nil
     }
 
+    var currentUserEmail: String? {
+        supabase.auth.currentUser?.email
+    }
+
     func resetPassword(email: String) async {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 

@@ -1,19 +1,22 @@
-# Add Audio File Upload & Analysis
+# Add Profile Tab, Clean Up Auth Routing, and Polish Views
+
+**Changes Overview**
+
+This update adds a Profile tab, removes duplicate auth logic, and polishes the sign-in/sign-up screens.
 
 **Features**
-- Upload an audio file (M4A, WAV, MP3, AAC, CAF) from your device's Files app
-- The app analyzes the uploaded file the same way it analyzes a live recording
-- Silent files and files that are too short or too long are rejected with a clear message
-- Temporary copies of uploaded files are cleaned up after analysis
+- New **Profile** tab showing your account email, usage stats (total analyses, this week's count, most common cry reason), and a Sign Out button
+- Sign Out moved from the History toolbar to the Profile tab for a cleaner layout
+- Simplified app routing — no more duplicate auth checks
 
 **Design**
-- An "or" divider appears below the waveform area, separating live recording from file upload
-- A subtle "Upload Audio File" button with an upload icon sits below the divider
-- When analyzing an uploaded file, a spinner shows the file name being analyzed
-- The button is disabled while recording or analyzing
+- Profile screen uses a native grouped list style with an avatar circle, account info, stats section, and a red Sign Out button
+- Sign-in subtitle changed to *"Your baby's voice, understood."*
+- Sign-up subtitle changed to *"Save your cry history and track your baby's patterns over time."*
+- A small privacy note added at the bottom of the sign-in form: *"Your data is stored securely and never shared."*
 
-**Changes**
-1. **New: Audio File Analyzer service** — Reads an audio file, calculates duration, average loudness, and peak loudness using the same metrics as live recording
-2. **New: Audio File Picker** — A native iOS file picker that lets you browse and select audio files from your device
-3. **Updated: Listen screen logic** — Adds a new function to analyze a picked file, validate it, send it for cry analysis, and save the result to history
-4. **Updated: Listen screen layout** — Adds the "or" divider and upload button below the waveform, plus a file-specific analyzing indicator
+**Screens**
+- **Listen tab** — unchanged
+- **History tab** — Sign Out button removed from toolbar (clear history button remains)
+- **Profile tab** (new) — account info, stats, and Sign Out
+- **Sign In / Sign Up** — updated subtitle text and privacy note

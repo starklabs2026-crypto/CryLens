@@ -33,6 +33,18 @@ class CryHistoryStore {
         save()
     }
 
+    var analysesThisWeek: Int {
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return analyses.filter { $0.date >= weekAgo }.count
+    }
+
+    var mostCommonReason: String {
+        guard !analyses.isEmpty else { return "None yet" }
+        let counts = Dictionary(grouping: analyses, by: { $0.reason })
+            .mapValues { $0.count }
+        return counts.max(by: { $0.value < $1.value })?.key.rawValue ?? "Unknown"
+    }
+
     var groupedByDate: [(String, [CryAnalysis])] {
         let calendar = Calendar.current
         let grouped = Dictionary(grouping: analyses) { analysis in

@@ -25,7 +25,7 @@ struct SignUpView: View {
                         .font(.largeTitle.bold())
                         .foregroundStyle(.white)
 
-                    Text("Create an account to save your cry history and continue across sessions.")
+                    Text("Save your cry history and track your baby's patterns over time.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
