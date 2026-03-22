@@ -9,6 +9,10 @@ class ListenViewModel {
     var showError = false
 
     let recorder = AudioRecordingService()
+    let fileAnalyzer = AudioFileAnalyzer()
+    var isPickingFile: Bool = false
+    var selectedFileName: String? = nil
+
     private let analysisService = CryAnalysisService()
 
     func toggleRecording(historyStore: CryHistoryStore) {
@@ -62,6 +66,42 @@ class ListenViewModel {
             }
             isAnalyzing = false
         }
+    }
+
+    func analyzeFile(url: URL, historyStore: CryHistoryStore) async {
+        isAnalyzing = true
+        selectedFileName = url.lastPathComponent
+        errorMessage = nil
+
+        do {
+            let metrics = try await fileAnalyzer.analyze(url: url)
+
+            guard metrics.averageDecibels > -55 else {
+                errorMessage = "No crying detected in this file. Please try a different recording."
+                showError = true
+                isAnalyzing = false
+                selectedFileName = nil
+                return
+            }
+
+            let analysis = try await analysisService.analyzeCry(
+                durationSeconds: metrics.durationSeconds,
+                averageDecibels: metrics.averageDecibels,
+                peakDecibels: metrics.peakDecibels
+            )
+
+            withAnimation(.spring(duration: 0.5)) {
+                latestAnalysis = analysis
+            }
+            historyStore.add(analysis)
+
+            try? FileManager.default.removeItem(at: url)
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+        isAnalyzing = false
+        selectedFileName = nil
     }
 
     func requestMicPermission() async {

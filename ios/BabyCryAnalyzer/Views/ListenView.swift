@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ListenView: View {
     @State private var viewModel = ListenViewModel()
+    @State private var showFilePicker: Bool = false
     @Environment(CryHistoryStore.self) private var historyStore
 
     var body: some View {
@@ -74,16 +75,48 @@ struct ListenView: View {
                 .padding(.horizontal, 32)
                 .padding(.top, 8)
 
+                HStack {
+                    Rectangle().frame(height: 0.5).foregroundStyle(.secondary.opacity(0.4))
+                    Text("or").font(.caption).foregroundStyle(.secondary)
+                    Rectangle().frame(height: 0.5).foregroundStyle(.secondary.opacity(0.4))
+                }
+                .padding(.horizontal, 40)
+                .padding(.top, 8)
+
+                Button(action: { showFilePicker = true }) {
+                    Label("Upload Audio File", systemImage: "square.and.arrow.up")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial)
+                        .clipShape(.rect(cornerRadius: 20))
+                }
+                .disabled(viewModel.recorder.isRecording || viewModel.isAnalyzing)
+                .padding(.top, 8)
+
                 if viewModel.isAnalyzing {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                            .tint(.secondary)
-                        Text("Analyzing cry patterns…")
-                            .font(.subheadline)
-                            .foregroundStyle(.tertiary)
+                    if let fileName = viewModel.selectedFileName {
+                        VStack(spacing: 4) {
+                            ProgressView()
+                                .tint(.secondary)
+                            Text("Analyzing \(fileName)…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 24)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    } else {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                                .tint(.secondary)
+                            Text("Analyzing cry patterns…")
+                                .font(.subheadline)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.top, 24)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
-                    .padding(.top, 24)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
 
                 if let analysis = viewModel.latestAnalysis {
@@ -117,6 +150,19 @@ struct ListenView: View {
             if !viewModel.recorder.hasPermission && !viewModel.recorder.isRecording {
                 permissionOverlay
             }
+        }
+        .sheet(isPresented: $showFilePicker) {
+            AudioFilePicker(
+                onFilePicked: { url in
+                    showFilePicker = false
+                    Task {
+                        await viewModel.analyzeFile(url: url, historyStore: historyStore)
+                    }
+                },
+                onCancel: {
+                    showFilePicker = false
+                }
+            )
         }
     }
 

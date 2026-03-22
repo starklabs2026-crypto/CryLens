@@ -1,15 +1,19 @@
-# Improve recording safety and block silent analyses
+# Add Audio File Upload & Analysis
 
 **Features**
-- [x] Automatically stop a recording after 5 minutes so it cannot run indefinitely.
-- [x] Prevent very quiet recordings from being analyzed when no crying is detected.
-- [x] Show a clear message asking the user to move closer and try again for silent captures.
+- Upload an audio file (M4A, WAV, MP3, AAC, CAF) from your device's Files app
+- The app analyzes the uploaded file the same way it analyzes a live recording
+- Silent files and files that are too short or too long are rejected with a clear message
+- Temporary copies of uploaded files are cleaned up after analysis
 
 **Design**
-- [x] Keep the current recording experience unchanged during normal use.
-- [x] Preserve the existing visual style and alerts so the fixes feel native to the app.
-- [x] Make the silent-recording message simple, calm, and reassuring.
+- An "or" divider appears below the waveform area, separating live recording from file upload
+- A subtle "Upload Audio File" button with an upload icon sits below the divider
+- When analyzing an uploaded file, a spinner shows the file name being analyzed
+- The button is disabled while recording or analyzing
 
-**Pages / Screens**
-- [x] Listening screen: recording ends automatically at the maximum duration.
-- [x] Listening screen: silent recordings are stopped early from analysis and show guidance instead of a result.
+**Changes**
+1. **New: Audio File Analyzer service** — Reads an audio file, calculates duration, average loudness, and peak loudness using the same metrics as live recording
+2. **New: Audio File Picker** — A native iOS file picker that lets you browse and select audio files from your device
+3. **Updated: Listen screen logic** — Adds a new function to analyze a picked file, validate it, send it for cry analysis, and save the result to history
+4. **Updated: Listen screen layout** — Adds the "or" divider and upload button below the waveform, plus a file-specific analyzing indicator
