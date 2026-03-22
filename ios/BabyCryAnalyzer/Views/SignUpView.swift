@@ -18,8 +18,7 @@ struct SignUpView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "person.crop.circle.badge.plus")
                         .font(.system(size: 64))
-                        .foregroundStyle(.tint)
-                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.white)
 
                     Text("Create Account")
                         .font(.largeTitle.bold())
@@ -27,7 +26,7 @@ struct SignUpView: View {
 
                     Text("Save your cry history and track your baby's patterns over time.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.45))
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 28)
@@ -41,19 +40,19 @@ struct SignUpView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding()
-                        .background(.ultraThinMaterial, in: .rect(cornerRadius: 16))
+                        .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 16))
 
                     SecureField("Password", text: $password)
                         .textContentType(.newPassword)
                         .textInputAutocapitalization(.never)
                         .padding()
-                        .background(.ultraThinMaterial, in: .rect(cornerRadius: 16))
+                        .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 16))
 
                     SecureField("Confirm Password", text: $confirmPassword)
                         .textContentType(.newPassword)
                         .textInputAutocapitalization(.never)
                         .padding()
-                        .background(.ultraThinMaterial, in: .rect(cornerRadius: 16))
+                        .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 16))
 
                     Button {
                         localError = nil
@@ -76,7 +75,7 @@ struct SignUpView: View {
                         Group {
                             if authService.isLoading {
                                 ProgressView()
-                                    .tint(.white)
+                                    .tint(.black)
                             } else {
                                 Text("Sign Up")
                                     .font(.headline)
@@ -85,26 +84,26 @@ struct SignUpView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.accentColor, in: .rect(cornerRadius: 16))
-                        .foregroundStyle(.white)
+                        .background(Color.white, in: .rect(cornerRadius: 16))
+                        .foregroundStyle(.black)
                     }
                     .disabled(authService.isLoading)
 
                     Divider()
-                        .overlay(.white.opacity(0.1))
+                        .overlay(.white.opacity(0.08))
                         .padding(.vertical, 8)
 
                     Button("Already have an account? Sign In") {
                         dismiss()
                     }
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.55))
                 }
                 .padding(22)
-                .background(.regularMaterial, in: .rect(cornerRadius: 28))
+                .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 28))
                 .overlay {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(.white.opacity(0.08), lineWidth: 1)
+                        .stroke(.white.opacity(0.12), lineWidth: 1)
                 }
                 .padding(.horizontal, 20)
 
@@ -143,28 +142,6 @@ struct SignUpView: View {
     }
 
     private var authBackground: some View {
-        ZStack {
-            Color.black
-                .ignoresSafeArea()
-
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: [
-                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                    [0.0, 0.5], [0.5, 0.5], [1.0, 0.5],
-                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-                ],
-                colors: [
-                    .black, .blue.opacity(0.7), .indigo.opacity(0.55),
-                    .purple.opacity(0.45), .black, .blue.opacity(0.3),
-                    .black, .indigo.opacity(0.4), .black
-                ]
-            )
-            .blur(radius: 70)
-            .opacity(0.85)
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-        }
+        Color.black.ignoresSafeArea()
     }
 }

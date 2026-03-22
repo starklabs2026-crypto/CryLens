@@ -1,22 +1,25 @@
-# Add Profile Tab, Clean Up Auth Routing, and Polish Views
+# Refine auth screens to a black-and-white style and align tab titles
 
-**Changes Overview**
+## Features
 
-This update adds a Profile tab, removes duplicate auth logic, and polishes the sign-in/sign-up screens.
+- [x] Give the sign-in, create-account, and password-reset screens a cleaner black-and-white look.
+- [x] Make the main action buttons bright white with dark text for stronger contrast.
+- [x] Update supporting links and subtitles to softer white tones for a calmer hierarchy.
+- [x] Align the Listen, History, and Profile tabs with matching large titles at the top left.
 
-**Features**
-- New **Profile** tab showing your account email, usage stats (total analyses, this week's count, most common cry reason), and a Sign Out button
-- Sign Out moved from the History toolbar to the Profile tab for a cleaner layout
-- Simplified app routing — no more duplicate auth checks
+## Design
 
-**Design**
-- Profile screen uses a native grouped list style with an avatar circle, account info, stats section, and a red Sign Out button
-- Sign-in subtitle changed to *"Your baby's voice, understood."*
-- Sign-up subtitle changed to *"Save your cry history and track your baby's patterns over time."*
-- A small privacy note added at the bottom of the sign-in form: *"Your data is stored securely and never shared."*
+- [x] Replace the current dramatic backdrop with a pure black background.
+- [x] Use white line-style symbols and white headings for a sharper monochrome identity.
+- [x] Restyle the form cards with subtle translucent white surfaces and a slightly brighter outline.
+- [x] Soften input fields and dividers with lower-contrast white shades to keep the look minimal.
+- [x] Keep the dark appearance throughout for a consistent night-mode feel.
 
-**Screens**
-- **Listen tab** — unchanged
-- **History tab** — Sign Out button removed from toolbar (clear history button remains)
-- **Profile tab** (new) — account info, stats, and Sign Out
-- **Sign In / Sign Up** — updated subtitle text and privacy note
+## Pages / Screens
+
+- [x] **Sign In**: Simplify the background, switch the icon to a white outlined waveform, and restyle the button, fields, links, and card to match the monochrome theme.
+- [x] **Create Account**: Apply the same monochrome treatment so it feels visually identical to sign in.
+- [x] **Reset Password**: Apply the same monochrome treatment for consistency across the full auth flow.
+- [x] **Listen**: Add a standard large title at the top left so it matches the other tabs.
+- [x] **History**: Ensure the screen uses the standard large title layout.
+- [x] **Profile**: Ensure the screen uses the standard large title layout.

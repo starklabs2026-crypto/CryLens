@@ -15,10 +15,9 @@ struct SignInView: View {
                 Spacer()
 
                 VStack(spacing: 8) {
-                    Image(systemName: "waveform.circle.fill")
+                    Image(systemName: "waveform.circle")
                         .font(.system(size: 72))
-                        .foregroundStyle(.tint)
-                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.white)
 
                     Text("Baby Cry Analyzer")
                         .font(.largeTitle.bold())
@@ -26,7 +25,7 @@ struct SignInView: View {
 
                     Text("Your baby's voice, understood.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.45))
                 }
 
                 Spacer()
@@ -38,20 +37,20 @@ struct SignInView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding()
-                        .background(.ultraThinMaterial, in: .rect(cornerRadius: 16))
+                        .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 16))
 
                     SecureField("Password", text: $password)
                         .textContentType(.password)
                         .textInputAutocapitalization(.never)
                         .padding()
-                        .background(.ultraThinMaterial, in: .rect(cornerRadius: 16))
+                        .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 16))
 
                     Button("Forgot password?") {
                         showForgotPassword = true
                     }
                     .font(.footnote.weight(.medium))
                     .frame(maxWidth: .infinity, alignment: .trailing)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.45))
 
                     Button(action: {
                         Task {
@@ -61,7 +60,7 @@ struct SignInView: View {
                         Group {
                             if authService.isLoading {
                                 ProgressView()
-                                    .tint(.white)
+                                    .tint(.black)
                             } else {
                                 Text("Sign In")
                                     .font(.headline)
@@ -70,20 +69,20 @@ struct SignInView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.accentColor, in: .rect(cornerRadius: 16))
-                        .foregroundStyle(.white)
+                        .background(Color.white, in: .rect(cornerRadius: 16))
+                        .foregroundStyle(.black)
                     }
                     .disabled(authService.isLoading)
 
                     Divider()
-                        .overlay(.white.opacity(0.1))
+                        .overlay(.white.opacity(0.08))
                         .padding(.vertical, 8)
 
                     Button("Don't have an account? Sign Up") {
                         showSignUp = true
                     }
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.55))
 
                     Text("Your data is stored securely and never shared.")
                         .font(.caption2)
@@ -92,10 +91,10 @@ struct SignInView: View {
                         .padding(.top, 4)
                 }
                 .padding(22)
-                .background(.regularMaterial, in: .rect(cornerRadius: 28))
+                .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 28))
                 .overlay {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(.white.opacity(0.08), lineWidth: 1)
+                        .stroke(.white.opacity(0.12), lineWidth: 1)
                 }
                 .padding(.horizontal, 20)
 
@@ -136,28 +135,6 @@ struct SignInView: View {
     }
 
     private var authBackground: some View {
-        ZStack {
-            Color.black
-                .ignoresSafeArea()
-
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: [
-                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                    [0.0, 0.5], [0.5, 0.5], [1.0, 0.5],
-                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-                ],
-                colors: [
-                    .black, .blue.opacity(0.7), .indigo.opacity(0.55),
-                    .purple.opacity(0.45), .black, .blue.opacity(0.3),
-                    .black, .indigo.opacity(0.4), .black
-                ]
-            )
-            .blur(radius: 70)
-            .opacity(0.85)
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-        }
+        Color.black.ignoresSafeArea()
     }
 }

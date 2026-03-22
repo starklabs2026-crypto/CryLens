@@ -35,6 +35,7 @@ struct HistoryView: View {
                 }
             }
             .navigationTitle("History")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if !historyStore.analyses.isEmpty {

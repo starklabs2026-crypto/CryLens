@@ -15,8 +15,7 @@ struct ForgotPasswordView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "envelope.badge")
                         .font(.system(size: 60))
-                        .foregroundStyle(.tint)
-                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.white)
 
                     Text("Reset Password")
                         .font(.largeTitle.bold())
@@ -24,7 +23,7 @@ struct ForgotPasswordView: View {
 
                     Text("Enter your email and we'll send you a reset link")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.45))
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 28)
@@ -38,7 +37,7 @@ struct ForgotPasswordView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding()
-                        .background(.ultraThinMaterial, in: .rect(cornerRadius: 16))
+                        .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 16))
 
                     Button {
                         authService.errorMessage = nil
@@ -50,7 +49,7 @@ struct ForgotPasswordView: View {
                         Group {
                             if authService.isLoading {
                                 ProgressView()
-                                    .tint(.white)
+                                    .tint(.black)
                             } else {
                                 Text("Send Reset Link")
                                     .font(.headline)
@@ -59,26 +58,26 @@ struct ForgotPasswordView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.accentColor, in: .rect(cornerRadius: 16))
-                        .foregroundStyle(.white)
+                        .background(Color.white, in: .rect(cornerRadius: 16))
+                        .foregroundStyle(.black)
                     }
                     .disabled(authService.isLoading)
 
                     Divider()
-                        .overlay(.white.opacity(0.1))
+                        .overlay(.white.opacity(0.08))
                         .padding(.vertical, 8)
 
                     Button("Back to Sign In") {
                         dismiss()
                     }
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.55))
                 }
                 .padding(22)
-                .background(.regularMaterial, in: .rect(cornerRadius: 28))
+                .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 28))
                 .overlay {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(.white.opacity(0.08), lineWidth: 1)
+                        .stroke(.white.opacity(0.12), lineWidth: 1)
                 }
                 .padding(.horizontal, 20)
 
@@ -113,28 +112,6 @@ struct ForgotPasswordView: View {
     }
 
     private var authBackground: some View {
-        ZStack {
-            Color.black
-                .ignoresSafeArea()
-
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: [
-                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                    [0.0, 0.5], [0.5, 0.5], [1.0, 0.5],
-                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-                ],
-                colors: [
-                    .black, .blue.opacity(0.7), .indigo.opacity(0.55),
-                    .purple.opacity(0.45), .black, .blue.opacity(0.3),
-                    .black, .indigo.opacity(0.4), .black
-                ]
-            )
-            .blur(radius: 70)
-            .opacity(0.85)
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-        }
+        Color.black.ignoresSafeArea()
     }
 }

@@ -46,6 +46,7 @@ struct ProfileView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.large)
         }
         .alert("Sign Out?", isPresented: $showSignOutAlert) {
             Button("Cancel", role: .cancel) {}

@@ -6,135 +6,145 @@ struct ListenView: View {
     @Environment(CryHistoryStore.self) private var historyStore
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                Spacer().frame(height: 60)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer().frame(height: 60)
 
-                VStack(spacing: 8) {
-                    Text(statusTitle)
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .contentTransition(.numericText())
+                    VStack(spacing: 8) {
+                        Text(statusTitle)
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                            .foregroundStyle(.primary)
+                            .contentTransition(.numericText())
 
-                    Text(statusSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-                .animation(.smooth(duration: 0.3), value: viewModel.recorder.isRecording)
+                        Text(statusSubtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .animation(.smooth(duration: 0.3), value: viewModel.recorder.isRecording)
 
-                Spacer().frame(height: 48)
+                    Spacer().frame(height: 48)
 
-                ZStack {
-                    Circle()
-                        .fill(
-                            MeshGradient(
-                                width: 3, height: 3,
-                                points: [
-                                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                                    [0.0, 0.5], [0.5, 0.5], [1.0, 0.5],
-                                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
-                                ],
-                                colors: [
-                                    .purple.opacity(0.15), .indigo.opacity(0.1), .blue.opacity(0.08),
-                                    .pink.opacity(0.12), .purple.opacity(0.08), .indigo.opacity(0.1),
-                                    .orange.opacity(0.06), .pink.opacity(0.1), .purple.opacity(0.12)
-                                ]
+                    ZStack {
+                        Circle()
+                            .fill(
+                                MeshGradient(
+                                    width: 3,
+                                    height: 3,
+                                    points: [
+                                        [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
+                                        [0.0, 0.5], [0.5, 0.5], [1.0, 0.5],
+                                        [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
+                                    ],
+                                    colors: [
+                                        .purple.opacity(0.15), .indigo.opacity(0.1), .blue.opacity(0.08),
+                                        .pink.opacity(0.12), .purple.opacity(0.08), .indigo.opacity(0.1),
+                                        .orange.opacity(0.06), .pink.opacity(0.1), .purple.opacity(0.12)
+                                    ]
+                                )
                             )
-                        )
-                        .frame(width: 240, height: 240)
-                        .blur(radius: 40)
-                        .opacity(viewModel.recorder.isRecording ? 1 : 0.5)
-                        .scaleEffect(viewModel.recorder.isRecording ? 1.2 : 0.9)
-                        .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: viewModel.recorder.isRecording)
+                            .frame(width: 240, height: 240)
+                            .blur(radius: 40)
+                            .opacity(viewModel.recorder.isRecording ? 1 : 0.5)
+                            .scaleEffect(viewModel.recorder.isRecording ? 1.2 : 0.9)
+                            .animation(
+                                .easeInOut(duration: 2.0).repeatForever(autoreverses: true),
+                                value: viewModel.recorder.isRecording
+                            )
 
-                    VStack(spacing: 20) {
-                        RecordButton(
-                            isRecording: viewModel.recorder.isRecording,
-                            isAnalyzing: viewModel.isAnalyzing,
-                            action: { viewModel.toggleRecording(historyStore: historyStore) }
-                        )
+                        VStack(spacing: 20) {
+                            RecordButton(
+                                isRecording: viewModel.recorder.isRecording,
+                                isAnalyzing: viewModel.isAnalyzing,
+                                action: { viewModel.toggleRecording(historyStore: historyStore) }
+                            )
 
-                        if viewModel.recorder.isRecording {
-                            Text(viewModel.formattedDuration)
-                                .font(.system(.title2, design: .rounded, weight: .light))
-                                .foregroundStyle(.secondary)
-                                .contentTransition(.numericText())
-                                .animation(.default, value: viewModel.recorder.recordingDuration)
-                                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                            if viewModel.recorder.isRecording {
+                                Text(viewModel.formattedDuration)
+                                    .font(.system(.title2, design: .rounded, weight: .light))
+                                    .foregroundStyle(.secondary)
+                                    .contentTransition(.numericText())
+                                    .animation(.default, value: viewModel.recorder.recordingDuration)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                            }
                         }
                     }
-                }
-                .frame(height: 280)
+                    .frame(height: 280)
 
-                WaveformView(
-                    levels: viewModel.recorder.audioLevels,
-                    isActive: viewModel.recorder.isRecording
-                )
-                .padding(.horizontal, 32)
-                .padding(.top, 8)
+                    WaveformView(
+                        levels: viewModel.recorder.audioLevels,
+                        isActive: viewModel.recorder.isRecording
+                    )
+                    .padding(.horizontal, 32)
+                    .padding(.top, 8)
 
-                HStack {
-                    Rectangle().frame(height: 0.5).foregroundStyle(.secondary.opacity(0.4))
-                    Text("or").font(.caption).foregroundStyle(.secondary)
-                    Rectangle().frame(height: 0.5).foregroundStyle(.secondary.opacity(0.4))
-                }
-                .padding(.horizontal, 40)
-                .padding(.top, 8)
-
-                Button(action: { showFilePicker = true }) {
-                    Label("Upload Audio File", systemImage: "square.and.arrow.up")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(.ultraThinMaterial)
-                        .clipShape(.rect(cornerRadius: 20))
-                }
-                .disabled(viewModel.recorder.isRecording || viewModel.isAnalyzing)
-                .padding(.top, 8)
-
-                if viewModel.isAnalyzing {
-                    if let fileName = viewModel.selectedFileName {
-                        VStack(spacing: 4) {
-                            ProgressView()
-                                .tint(.secondary)
-                            Text("Analyzing \(fileName)…")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.top, 24)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    } else {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                                .tint(.secondary)
-                            Text("Analyzing cry patterns…")
-                                .font(.subheadline)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.top, 24)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    HStack {
+                        Rectangle().frame(height: 0.5).foregroundStyle(.secondary.opacity(0.4))
+                        Text("or").font(.caption).foregroundStyle(.secondary)
+                        Rectangle().frame(height: 0.5).foregroundStyle(.secondary.opacity(0.4))
                     }
-                }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 8)
 
-                if let analysis = viewModel.latestAnalysis {
-                    AnalysisResultCard(analysis: analysis)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 32)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .bottom)),
-                            removal: .opacity
-                        ))
-                }
+                    Button(action: { showFilePicker = true }) {
+                        Label("Upload Audio File", systemImage: "square.and.arrow.up")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(.ultraThinMaterial)
+                            .clipShape(.rect(cornerRadius: 20))
+                    }
+                    .disabled(viewModel.recorder.isRecording || viewModel.isAnalyzing)
+                    .padding(.top, 8)
 
-                Spacer().frame(height: 40)
+                    if viewModel.isAnalyzing {
+                        if let fileName = viewModel.selectedFileName {
+                            VStack(spacing: 4) {
+                                ProgressView()
+                                    .tint(.secondary)
+                                Text("Analyzing \(fileName)…")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, 24)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        } else {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .tint(.secondary)
+                                Text("Analyzing cry patterns…")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.top, 24)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
+                    }
+
+                    if let analysis = viewModel.latestAnalysis {
+                        AnalysisResultCard(analysis: analysis)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 32)
+                            .transition(
+                                .asymmetric(
+                                    insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                    removal: .opacity
+                                )
+                            )
+                    }
+
+                    Spacer().frame(height: 40)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
+            .scrollIndicators(.hidden)
+            .background(Color(.systemBackground))
+            .navigationTitle("Hush")
+            .navigationBarTitleDisplayMode(.large)
         }
-        .scrollIndicators(.hidden)
-        .background(Color(.systemBackground))
         .animation(.spring(duration: 0.5), value: viewModel.isAnalyzing)
         .animation(.spring(duration: 0.5), value: viewModel.latestAnalysis?.id)
         .animation(.spring(duration: 0.5), value: viewModel.recorder.isRecording)
