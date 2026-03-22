@@ -5,7 +5,11 @@ import SwiftUI
 class CryHistoryStore {
     var analyses: [CryAnalysis] = []
 
-    private let storageKey = "cry_analyses"
+    private var fileURL: URL {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent("cry_analyses.json")
+    }
 
     init() {
         load()
@@ -47,11 +51,11 @@ class CryHistoryStore {
 
     private func save() {
         guard let data = try? JSONEncoder().encode(analyses) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        try? data.write(to: fileURL, options: .completeFileProtection)
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
+        guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? JSONDecoder().decode([CryAnalysis].self, from: data) else { return }
         analyses = decoded
     }
