@@ -1,26 +1,20 @@
-# Set up the app’s Supabase connection
-
-## Implementation Checklist
-- [x] Install the Supabase Swift SDK via Swift Package Manager.
-- [x] Add app config constants for the Supabase URL and publishable key.
-- [x] Create a shared Supabase client service file.
-- [x] Build the app and verify the integration compiles cleanly.
+# Add account session management
 
 **Features**
-- Connect the app to your Supabase project using the project URL you provided.
-- Use your public publishable key in the app and keep the server secret out of the iPhone app.
-- Add a single shared connection so future login, database, and storage features can all use the same setup.
-- Add a small app settings layer so these values are read cleanly from the app’s public configuration.
+- [x] Keep track of whether the user is signed in or signed out.
+- [x] Remember an existing signed-in session when the app opens.
+- [x] Support creating an account with email and password.
+- [x] Support signing in with email and password.
+- [x] Support signing out and clearing the current account state.
+- [x] Support sending a password reset email.
+- [x] Show clear validation messages for invalid email or short passwords.
+- [x] Show loading state while account actions are in progress.
 
 **Design**
-- No visual design changes.
-- No layout, color, or interaction changes.
-- This is an under-the-hood setup step to prepare the app for future connected features.
+- [x] No visual redesign is included in this change.
+- [x] This is a behind-the-scenes account layer that existing screens can use.
+- [x] Error messages will stay simple and user-friendly.
 
 **Pages / Screens**
-- No new screens.
-- No changes to the current listening, results, or history experience.
-
-**Connection Values To Use**
-- Project URL: `https://cmtlwxpqgrslnknlmraf.supabase.co`
-- App key: use the public publishable key you sent for the app connection.
+- [x] No new screens in this step.
+- [x] Existing screens will be able to read account state once this is added.
