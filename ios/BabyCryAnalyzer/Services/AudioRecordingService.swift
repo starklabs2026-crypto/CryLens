@@ -75,6 +75,10 @@ class AudioRecordingService: NSObject, AVAudioRecorderDelegate {
     func stopRecording() {
         audioRecorder?.stop()
         stopMetering()
+        try? AVAudioSession.sharedInstance().setActive(
+            false,
+            options: .notifyOthersOnDeactivation
+        )
         isRecording = false
     }
 

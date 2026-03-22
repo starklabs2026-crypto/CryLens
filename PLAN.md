@@ -1,16 +1,11 @@
-# Limit audio memory use during recording
+# Release microphone access after a recording ends
 
 **Features**
-- Keep live recording responsive during long listening sessions.
-- Prevent the running sound history from growing without limit in memory.
-- Preserve the recent sound level data needed for the current analysis experience.
+- [x] When you stop a recording, the app immediately releases microphone access.
+- [x] Other apps can resume music, calls, or audio playback right away.
+- [x] The listening flow stays the same, with no visual changes.
 
-**Design**
-- No visual changes to the app.
-- Recording behavior stays the same from the user’s perspective.
-
-**Pages / Screens**
-- Listen screen: long recordings remain more stable and memory-efficient.
-
-**Implementation Progress**
-- [x] Cap the rolling decibel sample buffer at 500 entries in `AudioRecordingService.updateLevels()`.
+**Behavior**
+- [x] The app will finish stopping the recording and audio level tracking first.
+- [x] Right after that, it will fully deactivate its microphone use.
+- [x] This change only affects what happens after recording ends.
