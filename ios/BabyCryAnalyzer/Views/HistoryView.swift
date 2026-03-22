@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct HistoryView: View {
+    @Environment(AuthService.self) private var authService
     @Environment(CryHistoryStore.self) private var historyStore
-    @State private var showClearConfirmation = false
+    @State private var showClearConfirmation: Bool = false
+    @State private var showSignOutAlert: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -36,8 +38,12 @@ struct HistoryView: View {
             }
             .navigationTitle("History")
             .toolbar {
-                if !historyStore.analyses.isEmpty {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("Sign Out", systemImage: "person.slash", role: .destructive) {
+                        showSignOutAlert = true
+                    }
+
+                    if !historyStore.analyses.isEmpty {
                         Button("Clear") {
                             showClearConfirmation = true
                         }
@@ -45,6 +51,16 @@ struct HistoryView: View {
                         .foregroundStyle(.secondary)
                     }
                 }
+            }
+            .alert("Sign Out?", isPresented: $showSignOutAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Sign Out", role: .destructive) {
+                    Task {
+                        await authService.signOut()
+                    }
+                }
+            } message: {
+                Text("You will be signed out of your account.")
             }
             .confirmationDialog("Clear History", isPresented: $showClearConfirmation, titleVisibility: .visible) {
                 Button("Clear All", role: .destructive) {

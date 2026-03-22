@@ -5,13 +5,16 @@ import SwiftUI
 class CryHistoryStore {
     var analyses: [CryAnalysis] = []
 
+    private let userId: String
+
     private var fileURL: URL {
-        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let directory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("cry_analyses.json")
+        return directory.appendingPathComponent("cry_analyses_\(userId).json")
     }
 
-    init() {
+    init(userId: String = "local") {
+        self.userId = userId
         load()
     }
 
@@ -55,6 +58,11 @@ class CryHistoryStore {
     }
 
     private func load() {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            analyses = []
+            return
+        }
+
         guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? JSONDecoder().decode([CryAnalysis].self, from: data) else { return }
         analyses = decoded
