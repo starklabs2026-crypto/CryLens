@@ -7,6 +7,7 @@ class AuthService {
     var isAuthenticated: Bool = false
     var currentUserID: String? = nil
     var isLoading: Bool = false
+    var isCheckingSession: Bool = true
     var errorMessage: String? = nil
 
     init() {
@@ -16,6 +17,10 @@ class AuthService {
     }
 
     private func checkSession() async {
+        defer {
+            isCheckingSession = false
+        }
+
         let session = try? await supabase.auth.session
 
         if session != nil {
