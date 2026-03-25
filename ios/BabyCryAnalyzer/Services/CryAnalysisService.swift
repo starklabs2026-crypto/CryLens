@@ -1,32 +1,71 @@
 import Foundation
 import OSLog
 
-nonisolated struct ChatMessage: Codable, Sendable {
+// MARK: - OpenAI response types
+
+private struct OpenAIChatRequest: Encodable {
+    let model: String
+    let messages: [OpenAIMessage]
+    let response_format: ResponseFormat
+
+    struct ResponseFormat: Encodable {
+        let type: String = "json_object"
+    }
+}
+
+private struct OpenAIMessage: Encodable {
     let role: String
     let content: String
 }
 
-nonisolated struct ChatRequestBody: Codable, Sendable {
-    let messages: [ChatMessage]
+private struct OpenAIChatResponse: Decodable {
+    let choices: [Choice]
+    struct Choice: Decodable {
+        let message: Message
+        struct Message: Decodable {
+            let content: String
+        }
+    }
 }
 
-nonisolated struct CryAnalysisResponse: Codable, Sendable {
+// MARK: - Parsed analysis response from GPT
+
+private struct CryAnalysisGPTResponse: Decodable {
     let reason: String
     let confidence: Double
     let tip: String
+    let detailedAnalysis: String
+    let urgency: String
+    let recommendations: [String]
 }
+
+// MARK: - Service
 
 @MainActor
 class CryAnalysisService {
-    private let toolkitURL: String
-    private let logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "BabyCryAnalyzer", category: "CryAnalysis")
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "BabyCryAnalyzer", category: "CryAnalysis")
+    private let endpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
     private let maxRetries = 2
 
-    init() {
-        self.toolkitURL = Config.EXPO_PUBLIC_TOOLKIT_URL
-    }
+    func analyzeCry(
+        durationSeconds: Int,
+        averageDecibels: Float,
+        peakDecibels: Float,
+        transcript: String? = nil,
+        transcriptLanguage: String? = nil
+    ) async throws -> CryAnalysis {
+        let apiKey = AppConfig.openAIAPIKey
+        guard !apiKey.isEmpty, !apiKey.hasPrefix("sk-YOUR") else {
+            logger.error("OpenAI API key not configured — using local fallback")
+            return fallbackAnalysis(
+                durationSeconds: durationSeconds,
+                averageDecibels: averageDecibels,
+                peakDecibels: peakDecibels,
+                transcript: transcript,
+                transcriptLanguage: transcriptLanguage
+            )
+        }
 
-    func analyzeCry(durationSeconds: Int, averageDecibels: Float, peakDecibels: Float, transcript: String? = nil, transcriptLanguage: String? = nil) async throws -> CryAnalysis {
         let prompt = buildPrompt(
             durationSeconds: durationSeconds,
             averageDecibels: averageDecibels,
@@ -41,18 +80,20 @@ class CryAnalysisService {
                 try await Task.sleep(for: .seconds(Double(attempt)))
             }
             do {
-                let responseText = try await callAgentChat(prompt: prompt)
-                let analysisResponse = parseAnalysis(from: responseText)
-
-                let reason = CryReason(rawValue: analysisResponse.reason) ?? .unknown
+                let gptResponse = try await callOpenAI(prompt: prompt, apiKey: apiKey)
+                let urgency = CryUrgency(rawValue: gptResponse.urgency.lowercased()) ?? .low
+                let reason = CryReason(rawValue: gptResponse.reason) ?? .unknown
                 return CryAnalysis(
                     reason: reason,
-                    confidence: analysisResponse.confidence,
-                    tip: analysisResponse.tip,
+                    confidence: gptResponse.confidence,
+                    tip: gptResponse.tip,
                     durationSeconds: durationSeconds,
                     averageDecibels: averageDecibels,
                     transcript: transcript,
-                    transcriptLanguage: transcriptLanguage
+                    transcriptLanguage: transcriptLanguage,
+                    detailedAnalysis: gptResponse.detailedAnalysis,
+                    urgency: urgency,
+                    recommendations: gptResponse.recommendations
                 )
             } catch {
                 lastError = error
@@ -60,7 +101,7 @@ class CryAnalysisService {
             }
         }
 
-        logger.error("Falling back to local analysis after server failure: \(lastError?.localizedDescription ?? "unknown error")")
+        logger.error("Falling back to local analysis after OpenAI failure: \(lastError?.localizedDescription ?? "unknown")")
         return fallbackAnalysis(
             durationSeconds: durationSeconds,
             averageDecibels: averageDecibels,
@@ -70,178 +111,50 @@ class CryAnalysisService {
         )
     }
 
-    private func callAgentChat(prompt: String) async throws -> String {
-        let baseURL = toolkitURL.isEmpty ? "https://toolkit.rork.com" : toolkitURL
+    // MARK: - OpenAI call
 
-        guard let url = URL(string: "\(baseURL)/agent/chat") else {
-            throw CryAnalysisError.invalidURL
-        }
+    private func callOpenAI(prompt: String, apiKey: String) async throws -> CryAnalysisGPTResponse {
+        let requestBody = OpenAIChatRequest(
+            model: "gpt-4o",
+            messages: [OpenAIMessage(role: "user", content: prompt)],
+            response_format: .init()
+        )
 
-        let requestBody = ChatRequestBody(messages: [
-            ChatMessage(role: "user", content: prompt)
-        ])
-
-        let jsonData = try JSONEncoder().encode(requestBody)
-
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
+        request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let projectId = Config.EXPO_PUBLIC_PROJECT_ID
-        if !projectId.isEmpty {
-            request.setValue(projectId, forHTTPHeaderField: "x-project-id")
-        }
-        let teamId = Config.EXPO_PUBLIC_TEAM_ID
-        if !teamId.isEmpty {
-            request.setValue(teamId, forHTTPHeaderField: "x-team-id")
-        }
-        request.timeoutInterval = 45
-        request.httpBody = jsonData
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(requestBody)
 
         let (data, response) = try await URLSession.shared.data(for: request)
-
         guard let httpResponse = response as? HTTPURLResponse else {
             throw CryAnalysisError.serverError(0)
         }
-
         guard (200...299).contains(httpResponse.statusCode) else {
             let body = String(data: data, encoding: .utf8) ?? "no body"
-            logger.error("HTTP \(httpResponse.statusCode): \(body, privacy: .private)")
+            logger.error("OpenAI HTTP \(httpResponse.statusCode): \(body, privacy: .private)")
             throw CryAnalysisError.serverError(httpResponse.statusCode)
         }
 
-        return try extractText(from: data)
-    }
-
-    private func extractText(from data: Data) throws -> String {
-        guard let raw = String(data: data, encoding: .utf8) else {
+        let chatResponse = try JSONDecoder().decode(OpenAIChatResponse.self, from: data)
+        guard let content = chatResponse.choices.first?.message.content,
+              let contentData = content.data(using: .utf8) else {
             throw CryAnalysisError.decodingError
         }
 
-        var fullText = ""
-        for line in raw.components(separatedBy: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("0:") {
-                var content = String(trimmed.dropFirst(2))
-                content = content.trimmingCharacters(in: .init(charactersIn: "\""))
-                content = content.replacingOccurrences(of: "\\n", with: "\n")
-                fullText += content
-            } else if trimmed.hasPrefix("data:") {
-                let jsonStr = String(trimmed.dropFirst(5))
-                if let jsonData = jsonStr.data(using: .utf8),
-                   let obj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-                    if let choices = obj["choices"] as? [[String: Any]],
-                       let msg = choices.first?["delta"] as? [String: Any],
-                       let content = msg["content"] as? String {
-                        fullText += content
-                    } else if let content = obj["content"] as? String {
-                        fullText += content
-                    }
-                }
-            }
-        }
-        if !fullText.isEmpty { return fullText }
-
-        if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let text = obj["text"] as? String { return text }
-            if let choices = obj["choices"] as? [[String: Any]],
-               let msg = choices.first?["message"] as? [String: Any],
-               let content = msg["content"] as? String { return content }
-            if let content = obj["content"] as? String { return content }
-            if let result = obj["result"] as? String { return result }
-        }
-
-        return raw
+        return try JSONDecoder().decode(CryAnalysisGPTResponse.self, from: contentData)
     }
 
-    private func parseAnalysis(from text: String) -> CryAnalysisResponse {
-        let cleaned = text
-            .replacingOccurrences(of: "```json", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+    // MARK: - Prompt
 
-        if let jsonData = cleaned.data(using: .utf8),
-           let parsed = try? JSONDecoder().decode(CryAnalysisResponse.self, from: jsonData) {
-            return parsed
-        }
-
-        if let start = cleaned.firstIndex(of: "{"),
-           let end = cleaned.lastIndex(of: "}") {
-            let jsonSubstr = String(cleaned[start...end])
-            if let jsonData = jsonSubstr.data(using: .utf8),
-               let parsed = try? JSONDecoder().decode(CryAnalysisResponse.self, from: jsonData) {
-                return parsed
-            }
-        }
-
-        return inferFromText(text)
-    }
-
-    private func inferFromText(_ text: String) -> CryAnalysisResponse {
-        let lower = text.lowercased()
-        var reason = "Unknown"
-        for r in CryReason.allCases where r != .unknown {
-            if lower.contains(r.rawValue.lowercased()) {
-                reason = r.rawValue
-                break
-            }
-        }
-        return CryAnalysisResponse(reason: reason, confidence: 0.6, tip: cleanTipFromText(text))
-    }
-
-    private func cleanTipFromText(_ text: String) -> String {
-        let sentences = text.components(separatedBy: ".")
-        let tips = sentences.filter { $0.lowercased().contains("try") || $0.lowercased().contains("consider") || $0.lowercased().contains("may") || $0.lowercased().contains("suggest") }
-        if let tip = tips.first {
-            return tip.trimmingCharacters(in: .whitespacesAndNewlines) + "."
-        }
-        return sentences.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            ? (sentences.last!.trimmingCharacters(in: .whitespacesAndNewlines) + ".")
-            : "Try comforting your baby with gentle rocking."
-    }
-
-    private func fallbackAnalysis(durationSeconds: Int, averageDecibels: Float, peakDecibels: Float, transcript: String?, transcriptLanguage: String?) -> CryAnalysis {
-        let reason: CryReason
-        let confidence: Double
-        let tip: String
-
-        if peakDecibels > -8 || (averageDecibels > -18 && durationSeconds < 12) {
-            reason = .pain
-            confidence = 0.74
-            tip = "A sudden, intense cry can sometimes signal pain or sharp discomfort. Check for anything causing immediate distress and contact your pediatrician if it continues."
-        } else if durationSeconds > 50 && averageDecibels > -24 {
-            reason = .hungry
-            confidence = 0.71
-            tip = "This pattern can line up with hunger cues. Try a feeding if it's been a while, then see whether your baby settles afterward."
-        } else if durationSeconds > 35 && averageDecibels <= -24 {
-            reason = .tired
-            confidence = 0.69
-            tip = "A longer, softer cry often appears when babies are overtired. Try dimming stimulation, holding your baby close, and starting a calming sleep routine."
-        } else if durationSeconds < 15 && peakDecibels < -20 {
-            reason = .gassy
-            confidence = 0.65
-            tip = "Short bursts can sometimes happen with gas or tummy discomfort. Gentle burping, upright holding, or slow bicycle-leg movements may help."
-        } else if averageDecibels > -22 {
-            reason = .needsAttention
-            confidence = 0.64
-            tip = "Your baby may be seeking comfort or closeness. Try holding, rocking, or speaking softly to reassure them."
-        } else {
-            reason = .uncomfortable
-            confidence = 0.6
-            tip = "Your baby may be uncomfortable. Check the diaper, clothing, room temperature, and overall comfort, then try soothing with gentle rocking."
-        }
-
-        return CryAnalysis(
-            reason: reason,
-            confidence: confidence,
-            tip: tip,
-            durationSeconds: durationSeconds,
-            averageDecibels: averageDecibels,
-            transcript: transcript,
-            transcriptLanguage: transcriptLanguage
-        )
-    }
-
-    private func buildPrompt(durationSeconds: Int, averageDecibels: Float, peakDecibels: Float, transcript: String?, transcriptLanguage: String?) -> String {
+    private func buildPrompt(
+        durationSeconds: Int,
+        averageDecibels: Float,
+        peakDecibels: Float,
+        transcript: String?,
+        transcriptLanguage: String?
+    ) -> String {
         let intensity: String
         if averageDecibels > -15 {
             intensity = "very loud and intense"
@@ -266,14 +179,14 @@ class CryAnalysisService {
 
         let transcriptContext: String
         if let transcript, !transcript.isEmpty {
-            let languageNote: String = transcriptLanguage?.isEmpty == false ? " in \(transcriptLanguage!)" : ""
-            transcriptContext = "- Detected vocal transcript\(languageNote): \(transcript)"
+            let languageNote = transcriptLanguage?.isEmpty == false ? " in \(transcriptLanguage!)" : ""
+            transcriptContext = "- Detected vocal content\(languageNote): \(transcript)"
         } else {
-            transcriptContext = "- Detected vocal transcript: none or unintelligible"
+            transcriptContext = "- Detected vocal content: none or unintelligible"
         }
 
         return """
-        You are a pediatric care assistant AI. Based on the following audio characteristics of a baby crying, determine the most likely reason for the crying.
+        You are a pediatric care assistant AI. A parent has recorded their baby crying. Analyze the audio characteristics and provide a detailed, helpful report.
 
         Audio characteristics:
         - Duration: \(durationDesc)
@@ -282,20 +195,123 @@ class CryAnalysisService {
         - Peak volume: \(String(format: "%.1f", peakDecibels)) dB
         \(transcriptContext)
 
-        Based on common patterns in baby crying:
-        - Hungry cries tend to be rhythmic, repetitive, and moderate intensity that builds over time
-        - Tired cries are often whiny, intermittent, with lower intensity
-        - Pain cries are sudden, sharp, high-pitched, and very intense
-        - Uncomfortable cries (wet diaper, too hot/cold) are fussy, intermittent, moderate
-        - Gassy cries often come in short bursts with pauses
-        - Needs attention cries are moderate, stop-and-start, looking for response
-        - Overstimulated cries build gradually, often with fussing before full crying
+        Cry pattern reference:
+        - Hungry: rhythmic, repetitive, builds in intensity over time, moderate volume
+        - Tired: whiny, intermittent, lower sustained intensity
+        - Pain: sudden, sharp, high-pitched, very intense peak, brief bursts
+        - Uncomfortable (wet/temperature): fussy, intermittent, moderate
+        - Gassy: short bursts with pauses, moderate intensity
+        - Needs Attention: moderate, stop-and-start pattern
+        - Overstimulated: builds gradually, fussy before full crying
 
-        If transcript content suggests spoken words or background speech, treat it only as weak context and prioritize the cry pattern metrics.
-
-        Respond ONLY with a JSON object (no markdown, no extra text) in this exact format:
-        {"reason": "<one of: Hungry, Tired, Uncomfortable, Needs Attention, Pain, Gassy, Overstimulated, Unknown>", "confidence": <0.0 to 1.0>, "tip": "<brief, warm, helpful tip for the parent in 1-2 sentences>"}
+        Respond ONLY with a JSON object using this exact schema:
+        {
+          "reason": "<one of: Hungry, Tired, Uncomfortable, Needs Attention, Pain, Gassy, Overstimulated, Unknown>",
+          "confidence": <0.0 to 1.0>,
+          "tip": "<warm, concise tip for the parent in 1-2 sentences>",
+          "detailedAnalysis": "<3-4 sentence detailed explanation: what the audio patterns indicate, why this classification was chosen, and what the baby is likely experiencing>",
+          "urgency": "<one of: low, medium, high — high only if Pain or potential medical concern>",
+          "recommendations": ["<actionable step 1>", "<actionable step 2>", "<actionable step 3>"]
+        }
         """
+    }
+
+    // MARK: - Local fallback
+
+    private func fallbackAnalysis(
+        durationSeconds: Int,
+        averageDecibels: Float,
+        peakDecibels: Float,
+        transcript: String?,
+        transcriptLanguage: String?
+    ) -> CryAnalysis {
+        let reason: CryReason
+        let confidence: Double
+        let tip: String
+        let detailedAnalysis: String
+        let urgency: CryUrgency
+        let recommendations: [String]
+
+        if peakDecibels > -8 || (averageDecibels > -18 && durationSeconds < 12) {
+            reason = .pain
+            confidence = 0.74
+            tip = "A sudden, intense cry can sometimes signal pain or sharp discomfort. Check for anything causing immediate distress."
+            detailedAnalysis = "The audio shows a very high peak volume and short, intense burst pattern — consistent with a pain response. This type of cry is typically sudden and piercing. Check for physical causes such as a pinched skin, gas pain, or ear discomfort. If the crying persists or you notice other symptoms, consult your pediatrician."
+            urgency = .high
+            recommendations = [
+                "Check for physical discomfort: pinched skin, hair tourniquet, insect bite",
+                "Look for signs of ear pain (pulling at ears)",
+                "Contact your pediatrician if intense crying continues for more than 10 minutes"
+            ]
+        } else if durationSeconds > 50 && averageDecibels > -24 {
+            reason = .hungry
+            confidence = 0.71
+            tip = "This pattern lines up with hunger cues. Try a feeding if it's been a while."
+            detailedAnalysis = "The cry is sustained and moderately loud, which aligns with a hunger pattern. Hungry cries typically build in intensity the longer they are ignored. Check when your baby last fed and look for additional hunger cues like rooting or sucking on hands."
+            urgency = .medium
+            recommendations = [
+                "Try feeding your baby",
+                "Check when they last ate — newborns typically feed every 2-3 hours",
+                "Look for hunger cues like rooting, sucking fists, or lip smacking"
+            ]
+        } else if durationSeconds > 35 && averageDecibels <= -24 {
+            reason = .tired
+            confidence = 0.69
+            tip = "A longer, softer cry often appears when babies are overtired. Try starting a calming sleep routine."
+            detailedAnalysis = "The cry duration is extended but the volume is relatively low, which is characteristic of an overtired or sleepy baby. Overtired babies often have difficulty self-soothing, which can prolong crying. Reducing stimulation and creating a calm environment may help."
+            urgency = .low
+            recommendations = [
+                "Dim lights and reduce noise in the environment",
+                "Try swaddling and gentle rocking",
+                "Start a consistent sleep routine if not already in place"
+            ]
+        } else if durationSeconds < 15 && peakDecibels < -20 {
+            reason = .gassy
+            confidence = 0.65
+            tip = "Short bursts can sometimes happen with gas or tummy discomfort. Gentle burping may help."
+            detailedAnalysis = "The short, intermittent cry pattern with moderate intensity is often associated with gas or digestive discomfort. Babies frequently swallow air during feeding, which can cause pain in the digestive tract. Physical techniques to help move gas are often very effective."
+            urgency = .low
+            recommendations = [
+                "Try gentle bicycle leg movements",
+                "Hold baby upright and pat their back to encourage burping",
+                "Try a gentle clockwise tummy massage"
+            ]
+        } else if averageDecibels > -22 {
+            reason = .needsAttention
+            confidence = 0.64
+            tip = "Your baby may be seeking comfort or closeness. Try holding and speaking softly."
+            detailedAnalysis = "The cry pattern suggests your baby may simply want closeness or social interaction. Babies at this stage communicate needs almost entirely through crying, and attention-seeking cries are a healthy developmental behavior. Responding promptly builds trust and security."
+            urgency = .low
+            recommendations = [
+                "Hold your baby skin-to-skin if possible",
+                "Talk or sing softly to provide reassurance",
+                "Check diaper and clothing for comfort"
+            ]
+        } else {
+            reason = .uncomfortable
+            confidence = 0.6
+            tip = "Your baby may be uncomfortable. Check diaper, clothing, and room temperature."
+            detailedAnalysis = "The audio pattern doesn't clearly match a single cause, suggesting general discomfort. Discomfort cries are often fussy and inconsistent. Running through a basic comfort checklist is the best first step to identifying and resolving the cause."
+            urgency = .low
+            recommendations = [
+                "Check and change diaper if needed",
+                "Ensure clothing isn't too tight or scratchy",
+                "Check room temperature (ideal: 68–72°F / 20–22°C)"
+            ]
+        }
+
+        return CryAnalysis(
+            reason: reason,
+            confidence: confidence,
+            tip: tip,
+            durationSeconds: durationSeconds,
+            averageDecibels: averageDecibels,
+            transcript: transcript,
+            transcriptLanguage: transcriptLanguage,
+            detailedAnalysis: detailedAnalysis,
+            urgency: urgency,
+            recommendations: recommendations
+        )
     }
 }
 

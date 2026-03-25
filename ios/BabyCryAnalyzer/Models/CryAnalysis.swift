@@ -10,6 +10,10 @@ nonisolated struct CryAnalysis: Identifiable, Codable, Sendable {
     let averageDecibels: Float
     let transcript: String?
     let transcriptLanguage: String?
+    // Detailed report fields (nil for analyses from older app versions)
+    let detailedAnalysis: String?
+    let urgency: CryUrgency?
+    let recommendations: [String]?
 
     init(
         id: UUID = UUID(),
@@ -20,7 +24,10 @@ nonisolated struct CryAnalysis: Identifiable, Codable, Sendable {
         durationSeconds: Int,
         averageDecibels: Float,
         transcript: String? = nil,
-        transcriptLanguage: String? = nil
+        transcriptLanguage: String? = nil,
+        detailedAnalysis: String? = nil,
+        urgency: CryUrgency? = nil,
+        recommendations: [String]? = nil
     ) {
         self.id = id
         self.date = date
@@ -31,6 +38,31 @@ nonisolated struct CryAnalysis: Identifiable, Codable, Sendable {
         self.averageDecibels = averageDecibels
         self.transcript = transcript
         self.transcriptLanguage = transcriptLanguage
+        self.detailedAnalysis = detailedAnalysis
+        self.urgency = urgency
+        self.recommendations = recommendations
+    }
+}
+
+nonisolated enum CryUrgency: String, Codable, Sendable {
+    case low = "low"
+    case medium = "medium"
+    case high = "high"
+
+    var label: String {
+        switch self {
+        case .low: return "Routine"
+        case .medium: return "Attention Needed"
+        case .high: return "Urgent"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .low: return "green"
+        case .medium: return "orange"
+        case .high: return "red"
+        }
     }
 }
 
