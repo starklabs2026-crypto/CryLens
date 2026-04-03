@@ -6,12 +6,13 @@ struct BabyCryAnalyzerApp: App {
     @State private var authService: AuthService = AuthService()
 
     init() {
+        guard AppConfig.revenueCatEnabled else { return }
+
         #if DEBUG
         Purchases.logLevel = .debug
-        Purchases.configure(withAPIKey: Config.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY)
-        #else
-        Purchases.configure(withAPIKey: Config.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY)
         #endif
+
+        Purchases.configure(withAPIKey: AppConfig.revenueCatAPIKey)
     }
 
     var body: some Scene {

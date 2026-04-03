@@ -12,7 +12,19 @@ struct PaywallView: View {
                 Color.black.ignoresSafeArea()
 
                 Group {
-                    if store.isLoading {
+                    if !store.isAvailable {
+                        ContentUnavailableView {
+                            Label("Subscriptions Unavailable", systemImage: "creditcard.trianglebadge.exclamationmark")
+                        } description: {
+                            Text("RevenueCat keys are not configured for this build.")
+                        } actions: {
+                            Button("Close") {
+                                dismiss()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .foregroundStyle(.white)
+                    } else if store.isLoading {
                         ProgressView()
                             .tint(.white)
                     } else if let current = store.offerings?.current {

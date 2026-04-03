@@ -4,25 +4,38 @@ import RevenueCat
 @Observable
 @MainActor
 class StoreViewModel {
+    let isAvailable: Bool
     var offerings: Offerings?
     var isPremium: Bool = false
     var isLoading: Bool = false
     var isPurchasing: Bool = false
     var error: String?
 
-    init() {
+    init(isAvailable: Bool = AppConfig.revenueCatEnabled) {
+        self.isAvailable = isAvailable
+
+        guard isAvailable else { return }
+
         Task { await listenForUpdates() }
         Task { await fetchOfferings() }
         Task { await checkStatus() }
     }
 
     private func listenForUpdates() async {
+        guard isAvailable else { return }
+
         for await info in Purchases.shared.customerInfoStream {
             self.isPremium = info.entitlements["premium"]?.isActive == true
         }
     }
 
     func fetchOfferings() async {
+        guard isAvailable else {
+            offerings = nil
+            isLoading = false
+            return
+        }
+
         isLoading = true
         do {
             offerings = try await Purchases.shared.offerings()
@@ -33,6 +46,11 @@ class StoreViewModel {
     }
 
     func purchase(package: Package) async {
+        guard isAvailable else {
+            error = "Subscriptions are not configured in this build."
+            return
+        }
+
         isPurchasing = true
         do {
             let result = try await Purchases.shared.purchase(package: package)
@@ -48,6 +66,11 @@ class StoreViewModel {
     }
 
     func restore() async {
+        guard isAvailable else {
+            error = "Subscriptions are not configured in this build."
+            return
+        }
+
         do {
             let info = try await Purchases.shared.restorePurchases()
             isPremium = info.entitlements["premium"]?.isActive == true
@@ -57,6 +80,11 @@ class StoreViewModel {
     }
 
     func checkStatus() async {
+        guard isAvailable else {
+            isPremium = false
+            return
+        }
+
         do {
             let info = try await Purchases.shared.customerInfo()
             isPremium = info.entitlements["premium"]?.isActive == true

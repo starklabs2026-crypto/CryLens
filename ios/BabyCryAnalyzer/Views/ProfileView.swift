@@ -31,7 +31,7 @@ struct ProfileView: View {
                     .padding(.vertical, 6)
                 }
 
-                if !store.isPremium {
+                if store.isAvailable && !store.isPremium {
                     Section {
                         Button {
                             showPaywall = true
@@ -66,7 +66,7 @@ struct ProfileView: View {
                     LabeledContent("Most Common", value: historyStore.mostCommonReason)
                 }
 
-                if store.isPremium {
+                if store.isAvailable && store.isPremium {
                     Section("Subscription") {
                         LabeledContent("Status", value: "Active")
                             .foregroundStyle(.green)
@@ -75,6 +75,13 @@ struct ProfileView: View {
                                 UIApplication.shared.open(url)
                             }
                         }
+                    }
+                }
+
+                if !store.isAvailable {
+                    Section("App Setup") {
+                        Label("Subscriptions are disabled in this build", systemImage: "wrench.and.screwdriver")
+                            .foregroundStyle(.secondary)
                     }
                 }
 

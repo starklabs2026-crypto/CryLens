@@ -9,8 +9,12 @@ struct ListenView: View {
 
     private let freeAnalysisLimit: Int = 10
 
+    private var usageLimitApplies: Bool {
+        store.isAvailable && !store.isPremium
+    }
+
     private var freeUsageExhausted: Bool {
-        !store.isPremium && historyStore.analyses.count >= freeAnalysisLimit
+        usageLimitApplies && historyStore.analyses.count >= freeAnalysisLimit
     }
 
     var body: some View {
@@ -120,9 +124,14 @@ struct ListenView: View {
                     .disabled(viewModel.recorder.isRecording || viewModel.isAnalyzing)
                     .padding(.top, 8)
 
-                    if !store.isPremium {
+                    if usageLimitApplies {
                         let remaining = max(0, freeAnalysisLimit - historyStore.analyses.count)
                         Text("\(remaining) free analyses remaining")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 12)
+                    } else if !store.isAvailable {
+                        Text("Unlimited analyses available in this build")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.top, 12)
