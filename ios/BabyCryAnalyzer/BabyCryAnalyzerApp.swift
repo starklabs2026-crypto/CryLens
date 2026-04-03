@@ -1,8 +1,18 @@
 import SwiftUI
+import RevenueCat
 
 @main
 struct BabyCryAnalyzerApp: App {
     @State private var authService: AuthService = AuthService()
+
+    init() {
+        #if DEBUG
+        Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: Config.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY)
+        #else
+        Purchases.configure(withAPIKey: Config.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY)
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -23,13 +33,14 @@ struct BabyCryAnalyzerApp: App {
 
 private struct AuthenticatedAppRootView: View {
     @State private var historyStore: CryHistoryStore
+    @State private var storeVM: StoreViewModel = StoreViewModel()
 
     init(userId: String) {
         _historyStore = State(initialValue: CryHistoryStore(userId: userId))
     }
 
     var body: some View {
-        ContentView()
+        ContentView(store: storeVM)
             .environment(historyStore)
     }
 }

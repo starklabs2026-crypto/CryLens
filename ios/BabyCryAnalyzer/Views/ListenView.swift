@@ -1,9 +1,17 @@
 import SwiftUI
 
 struct ListenView: View {
+    var store: StoreViewModel
     @State private var viewModel = ListenViewModel()
     @State private var showFilePicker: Bool = false
+    @State private var showPaywall: Bool = false
     @Environment(CryHistoryStore.self) private var historyStore
+
+    private let freeAnalysisLimit: Int = 10
+
+    private var freeUsageExhausted: Bool {
+        !store.isPremium && historyStore.analyses.count >= freeAnalysisLimit
+    }
 
     var body: some View {
         NavigationStack {
@@ -58,7 +66,13 @@ struct ListenView: View {
                             RecordButton(
                                 isRecording: viewModel.recorder.isRecording,
                                 isAnalyzing: viewModel.isAnalyzing,
-                                action: { viewModel.toggleRecording(historyStore: historyStore) }
+                                action: {
+                                    if freeUsageExhausted {
+                                        showPaywall = true
+                                    } else {
+                                        viewModel.toggleRecording(historyStore: historyStore)
+                                    }
+                                }
                             )
 
                             if viewModel.recorder.isRecording {
@@ -88,7 +102,13 @@ struct ListenView: View {
                     .padding(.horizontal, 40)
                     .padding(.top, 8)
 
-                    Button(action: { showFilePicker = true }) {
+                    Button(action: {
+                        if freeUsageExhausted {
+                            showPaywall = true
+                        } else {
+                            showFilePicker = true
+                        }
+                    }) {
                         Label("Upload Audio File", systemImage: "square.and.arrow.up")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -99,6 +119,14 @@ struct ListenView: View {
                     }
                     .disabled(viewModel.recorder.isRecording || viewModel.isAnalyzing)
                     .padding(.top, 8)
+
+                    if !store.isPremium {
+                        let remaining = max(0, freeAnalysisLimit - historyStore.analyses.count)
+                        Text("\(remaining) free analyses remaining")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 12)
+                    }
 
                     if viewModel.isAnalyzing {
                         if let fileName = viewModel.selectedFileName {
@@ -173,6 +201,9 @@ struct ListenView: View {
                     showFilePicker = false
                 }
             )
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(store: store)
         }
     }
 
