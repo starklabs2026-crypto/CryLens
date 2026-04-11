@@ -29,4 +29,5 @@ COPY prisma ./prisma/
 
 EXPOSE 3000
 
+# Uses DIRECT_URL for migrate deploy (bypasses PgBouncer), then starts app
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
