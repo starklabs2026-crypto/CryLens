@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum CryLabel {
@@ -17,15 +18,19 @@ enum CryLabel {
 
 model User {
   id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
+  email        String?  @unique
+  passwordHash String?
   name         String
+  appleId      String?  @unique
+  googleId     String?  @unique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   babies Baby[]
 
   @@index([email])
+  @@index([appleId])
+  @@index([googleId])
 }
 
 model Baby {
@@ -35,8 +40,8 @@ model Baby {
   dob       DateTime
   createdAt DateTime @default(now())
 
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  analyses  CryAnalysis[]
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses CryAnalysis[]
 
   @@index([userId])
 }
@@ -48,6 +53,7 @@ model CryAnalysis {
   confidence  Float
   durationSec Int
   notes       String?
+  audioUrl    String?
   createdAt   DateTime @default(now())
 
   baby Baby @relation(fields: [babyId], references: [id], onDelete: Cascade)
