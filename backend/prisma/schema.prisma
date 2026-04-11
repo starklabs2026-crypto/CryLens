@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CryLabel {
+  hungry
+  tired
+  pain
+  burping
+  discomfort
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  babies Baby[]
+
+  @@index([email])
+}
+
+model Baby {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  dob       DateTime
+  createdAt DateTime @default(now())
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses  CryAnalysis[]
+
+  @@index([userId])
+}
+
+model CryAnalysis {
+  id          String   @id @default(uuid())
+  babyId      String
+  label       CryLabel
+  confidence  Float
+  durationSec Int
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  baby Baby @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId])
+  @@index([createdAt])
+}
