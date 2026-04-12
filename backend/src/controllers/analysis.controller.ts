@@ -4,6 +4,7 @@ import { CryLabel } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { supabase, AUDIO_BUCKET } from '../lib/supabase';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { analyzeCryAudio } from '../services/cryAnalyzer.service';
 
 const CRY_LABELS = ['hungry', 'tired', 'pain', 'burping', 'discomfort'] as const;
 
@@ -175,6 +176,52 @@ export async function getStats(req: AuthRequest, res: Response): Promise<void> {
   const avgConfidence = parseFloat((totalConfidence / analyses.length).toFixed(4));
 
   res.json({ breakdown, topLabel, avgConfidence, totalAnalyses: analyses.length, periodDays });
+}
+
+// ─── AI Analyze ───────────────────────────────────────────────────────────────
+
+const analyzeSchema = z.object({
+  babyId:      z.string().uuid('babyId must be a UUID'),
+  audioPath:   z.string().min(1, 'audioPath is required'),   // Supabase Storage path
+  durationSec: z.number().int().positive(),
+});
+
+export async function analyzeAudio(req: AuthRequest, res: Response): Promise<void> {
+  const parsed = analyzeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Validation failed', issues: parsed.error.flatten().fieldErrors });
+    return;
+  }
+
+  const { babyId, audioPath, durationSec } = parsed.data;
+
+  const baby = await prisma.baby.findUnique({ where: { id: babyId } });
+  if (!baby || baby.userId !== req.userId) {
+    res.status(404).json({ error: 'Baby not found' });
+    return;
+  }
+
+  let result;
+  try {
+    result = await analyzeCryAudio(audioPath);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Analysis failed';
+    res.status(502).json({ error: 'AI analysis failed', detail: message });
+    return;
+  }
+
+  const analysis = await prisma.cryAnalysis.create({
+    data: {
+      babyId,
+      label:       result.label as CryLabel,
+      confidence:  result.confidence,
+      durationSec,
+      notes:       result.notes,
+      audioUrl:    audioPath,
+    },
+  });
+
+  res.status(201).json({ analysis, aiResult: result });
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────

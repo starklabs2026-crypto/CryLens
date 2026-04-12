@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getUploadUrl,
+  analyzeAudio,
   createAnalysis,
   getHistory,
   getStats,
@@ -13,7 +14,8 @@ const router = Router();
 router.use(authenticate);
 
 router.post('/upload-url', getUploadUrl);   // Step 1: get presigned URL to upload audio
-router.post('/', createAnalysis);            // Step 2: save analysis record (with audioUrl from step 1)
+router.post('/analyze', analyzeAudio);      // Step 2: AI-analyze uploaded audio → save + return result
+router.post('/', createAnalysis);            // Manual: save analysis record without AI
 router.get('/history', getHistory);
 router.get('/stats', getStats);
 router.delete('/:id', deleteAnalysis);

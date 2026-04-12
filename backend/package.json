@@ -15,6 +15,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.13.0",
     "@supabase/supabase-js": "^2.43.4",
     "bcryptjs": "^2.4.3",
