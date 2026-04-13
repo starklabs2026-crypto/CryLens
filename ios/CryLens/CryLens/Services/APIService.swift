@@ -27,7 +27,7 @@ final class APIService {
     static let shared = APIService()
     private init() {}
 
-    private let baseURL = "https://crylens-production.up.railway.app"
+    private let baseURL = "https://crylens-api-production.up.railway.app"
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.keyDecodingStrategy = .convertFromSnakeCase
