@@ -112,7 +112,11 @@ struct PaywallView: View {
                 }
             }
         }
-        .task { await sub.fetchOffering() }
+        .task {
+            if sub.isConfigured {
+                await sub.fetchOffering()
+            }
+        }
     }
 
     // MARK: - Plan Card
@@ -182,7 +186,7 @@ struct PaywallView: View {
                     errorMessage = "No packages available. Check App Store Connect."
                 }
             } else {
-                errorMessage = "Subscription unavailable. Set your RevenueCat API key and App Store products."
+                errorMessage = "Subscription unavailable. Add your RevenueCat iOS public SDK key and offerings."
             }
 
             isLoading = false

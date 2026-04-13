@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { CryLabel } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { isGeminiConfigured } from '../lib/gemini';
 import { supabase, AUDIO_BUCKET } from '../lib/supabase';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { analyzeCryAudio } from '../services/cryAnalyzer.service';
@@ -198,6 +199,11 @@ export async function analyzeAudio(req: AuthRequest, res: Response): Promise<voi
   const baby = await prisma.baby.findUnique({ where: { id: babyId } });
   if (!baby || baby.userId !== req.userId) {
     res.status(404).json({ error: 'Baby not found' });
+    return;
+  }
+
+  if (!isGeminiConfigured()) {
+    res.status(503).json({ error: 'AI analysis unavailable', detail: 'GEMINI_API_KEY is not configured' });
     return;
   }
 

@@ -88,7 +88,7 @@ struct RegisterView: View {
 
                 // Apple Sign In
                 AppleSignInButton { token, appleNameFromApple in
-                    Task { await signInWithApple(token: token, name: name.isEmpty ? appleNameFromApple : name) }
+                    signInWithApple(token: token, name: name.isEmpty ? appleNameFromApple : name)
                 }
 
                 // Google Sign In
@@ -141,6 +141,11 @@ struct RegisterView: View {
     }
 
     private func signInWithGoogle() {
+        guard AppConfig.isGoogleSignInConfigured else {
+            errorMessage = "Google Sign-In is not configured."
+            return
+        }
+
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = scene.windows.first?.rootViewController else { return }
         Task {

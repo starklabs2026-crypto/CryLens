@@ -1,4 +1,4 @@
-import { geminiFlash } from '../lib/gemini';
+import { getGeminiFlash } from '../lib/gemini';
 import { supabase, AUDIO_BUCKET } from '../lib/supabase';
 
 export type CryLabelStr = 'hungry' | 'tired' | 'pain' | 'burping' | 'discomfort';
@@ -61,7 +61,7 @@ export async function analyzeCryAudio(audioStoragePath: string): Promise<CryAnal
   const mimeType = AUDIO_MIME_TYPES[ext] ?? 'audio/mp4';
 
   // 4. Send to Gemini 2.0 Flash
-  const result = await geminiFlash.generateContent([
+  const result = await getGeminiFlash().generateContent([
     SYSTEM_PROMPT,
     {
       inlineData: {

@@ -15,6 +15,10 @@ struct AuthResponse: Codable {
     let user: User
 }
 
+struct MeResponse: Codable {
+    let user: User
+}
+
 // MARK: - Baby
 
 struct Baby: Codable, Identifiable {

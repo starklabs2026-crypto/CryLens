@@ -1,16 +1,34 @@
 import SwiftUI
 import GoogleSignIn
 
+enum AppConfig {
+    private static func infoString(_ key: String) -> String {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
+            return ""
+        }
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isPlaceholder(_ value: String) -> Bool {
+        value.isEmpty || value.contains("YOUR_") || value.contains("REPLACE_WITH")
+    }
+
+    static let googleClientID = infoString("GoogleClientID")
+    static let revenueCatAPIKey = infoString("RevenueCatAPIKey")
+
+    static let isGoogleSignInConfigured = !isPlaceholder(googleClientID)
+    static let isRevenueCatConfigured = !isPlaceholder(revenueCatAPIKey)
+}
+
 @main
 struct CryLensApp: App {
     @StateObject private var appState = AppState()
 
     init() {
         SubscriptionService.shared.configure()
-        // TODO: Replace with your iOS client ID from Google Cloud Console
-        // https://console.cloud.google.com → APIs & Services → Credentials → iOS OAuth 2.0 Client
-        let config = GIDConfiguration(clientID: "YOUR_GOOGLE_IOS_CLIENT_ID.apps.googleusercontent.com")
-        GIDSignIn.sharedInstance.configuration = config
+        if AppConfig.isGoogleSignInConfigured {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: AppConfig.googleClientID)
+        }
     }
 
     var body: some Scene {

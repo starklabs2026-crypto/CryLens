@@ -87,8 +87,11 @@ final class APIService {
                                                body: Body(idToken: idToken)))
     }
 
+    func me() async throws -> MeResponse {
+        return try await fetch(try makeRequest("/auth/me"))
+    }
+
     func deleteAccount() async throws {
-        // Backend: DELETE /auth/me (requires authentication)
         let req = try makeRequest("/auth/me", method: "DELETE")
         _ = try await URLSession.shared.data(for: req)
     }

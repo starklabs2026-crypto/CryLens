@@ -24,14 +24,16 @@
 	<string>CryLens needs the microphone to listen to and analyse your baby's cry.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>CryLens uses the camera for profile photos.</string>
-	<!-- Google Sign-In: replace YOUR_REVERSED_CLIENT_ID with the reversed client ID
-	     from your GoogleService-Info.plist (looks like com.googleusercontent.apps.XXXX) -->
+	<key>GoogleClientID</key>
+	<string>991898994577-c5in7t2q0k0j50c5gu4ppv2ktt4cgdrm.apps.googleusercontent.com</string>
+	<key>RevenueCatAPIKey</key>
+	<string>appl_EBnUyCfoTPNRtxvLhtvrJradlbv</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>YOUR_REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.991898994577-c5in7t2q0k0j50c5gu4ppv2ktt4cgdrm</string>
 			</array>
 		</dict>
 	</array>

@@ -9,19 +9,27 @@ final class SubscriptionService: ObservableObject {
     @Published var currentOffering: Offering?
     @Published var isLoading: Bool = false
 
-    /// Replace with your RevenueCat iOS public API key from https://app.revenuecat.com
-    static let apiKey = "appl_REPLACE_WITH_YOUR_REVENUECAT_IOS_KEY"
     static let proEntitlementID = "pro"
+    static var isConfigured: Bool { AppConfig.isRevenueCatConfigured }
+    var isConfigured: Bool { Self.isConfigured }
 
     private init() {}
 
     func configure() {
+        guard Self.isConfigured else { return }
+
         Purchases.logLevel = .warn
-        Purchases.configure(withAPIKey: Self.apiKey)
+        Purchases.configure(withAPIKey: AppConfig.revenueCatAPIKey)
         Task { await refreshStatus() }
     }
 
     func refreshStatus() async {
+        guard Self.isConfigured else {
+            isPro = false
+            isLoading = false
+            return
+        }
+
         isLoading = true
         do {
             let info = try await Purchases.shared.customerInfo()
@@ -33,6 +41,11 @@ final class SubscriptionService: ObservableObject {
     }
 
     func fetchOffering() async {
+        guard Self.isConfigured else {
+            currentOffering = nil
+            return
+        }
+
         do {
             let offerings = try await Purchases.shared.offerings()
             currentOffering = offerings.current
@@ -42,6 +55,12 @@ final class SubscriptionService: ObservableObject {
     }
 
     func purchase(package: Package) async throws {
+        guard Self.isConfigured else {
+            throw NSError(domain: "SubscriptionService", code: 0, userInfo: [
+                NSLocalizedDescriptionKey: "RevenueCat is not configured."
+            ])
+        }
+
         let result = try await Purchases.shared.purchase(package: package)
         if !result.userCancelled {
             isPro = result.customerInfo.entitlements[Self.proEntitlementID]?.isActive == true
@@ -49,6 +68,12 @@ final class SubscriptionService: ObservableObject {
     }
 
     func restorePurchases() async throws {
+        guard Self.isConfigured else {
+            throw NSError(domain: "SubscriptionService", code: 0, userInfo: [
+                NSLocalizedDescriptionKey: "RevenueCat is not configured."
+            ])
+        }
+
         isLoading = true
         defer { isLoading = false }
         let info = try await Purchases.shared.restorePurchases()
@@ -57,11 +82,13 @@ final class SubscriptionService: ObservableObject {
 
     /// Login user with RevenueCat (call after successful auth)
     func login(userId: String) {
+        guard Self.isConfigured else { return }
         Purchases.shared.logIn(userId) { _, _, _ in }
     }
 
     /// Logout from RevenueCat (call on sign out)
     func logout() {
+        guard Self.isConfigured else { return }
         Purchases.shared.logOut { _, _ in }
     }
 }
