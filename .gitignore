@@ -1,10 +1,53 @@
-node_modules
+# Node
+node_modules/
+dist/
 .env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 .expo
 
-# Xcode / iOS
-ios/CryLens/CryLens.xcodeproj/xcuserdata/
+# Xcode / iOS build artifacts
+DerivedData/
 ios/DerivedData/
 ios/build/
+ios/CryLens/CryLens.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.xcscheme
+xcuserdata/
+Pods/
 *.ipa
 *.dSYM
+*.dSYM.zip
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.venv/
+venv/
+ENV/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+*.log
+coverage/

@@ -1,0 +1,64 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum CryLabel {
+  hungry
+  tired
+  pain
+  burping
+  discomfort
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String?  @unique
+  passwordHash String?
+  name         String
+  appleId      String?  @unique
+  googleId     String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  babies Baby[]
+
+  @@index([email])
+  @@index([appleId])
+  @@index([googleId])
+}
+
+model Baby {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  dob       DateTime
+  createdAt DateTime @default(now())
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses CryAnalysis[]
+
+  @@index([userId])
+}
+
+model CryAnalysis {
+  id          String   @id @default(uuid())
+  babyId      String
+  label       CryLabel
+  confidence  Float
+  durationSec Int
+  notes       String?
+  audioUrl    String?
+  createdAt   DateTime @default(now())
+
+  baby Baby @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId])
+  @@index([createdAt])
+}
