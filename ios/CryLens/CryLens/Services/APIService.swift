@@ -28,11 +28,8 @@ final class APIService {
     private init() {}
 
     private let baseURL = "https://crylens-api-production.up.railway.app"
-    private let decoder: JSONDecoder = {
-        let d = JSONDecoder()
-        d.keyDecodingStrategy = .convertFromSnakeCase
-        return d
-    }()
+    // Backend returns camelCase — use default key decoding
+    private let decoder = JSONDecoder()
 
     // MARK: - Request Building
 
@@ -72,7 +69,13 @@ final class APIService {
 
         do {
             return try decoder.decode(T.self, from: data)
-        } catch {
+        } catch let decodeErr {
+            // Log raw response for debugging
+            #if DEBUG
+            if let raw = String(data: data, encoding: .utf8) {
+                print("[APIService] Decode error: \(decodeErr)\nRaw: \(raw)")
+            }
+            #endif
             throw APIError.decodingError
         }
     }
@@ -95,46 +98,51 @@ final class APIService {
 
     func getBabies() async throws -> [Baby] {
         let req = try makeRequest("/babies")
-        return try await fetch(req)
+        // Backend: { babies: [...] }
+        let wrapper: BabiesResponse = try await fetch(req)
+        return wrapper.babies
     }
 
     func createBaby(name: String, dob: String) async throws -> Baby {
         struct Body: Encodable { let name, dob: String }
         let req = try makeRequest("/babies", method: "POST", body: Body(name: name, dob: dob))
-        return try await fetch(req)
+        // Backend: { baby: {...} }
+        let wrapper: BabyResponse = try await fetch(req)
+        return wrapper.baby
     }
 
     // MARK: - Analyses
 
     func logAnalysis(_ analysis: NewCryAnalysis) async throws -> CryAnalysis {
-        let req = try makeRequest("/analyses", method: "POST", body: analysis)
-        return try await fetch(req)
+        let req = try makeRequest("/analysis", method: "POST", body: analysis)
+        // Backend: { analysis: {...} }
+        let wrapper: AnalysisResponse = try await fetch(req)
+        return wrapper.analysis
     }
 
     func getHistory(babyId: String? = nil) async throws -> [CryAnalysis] {
-        var path = "/analyses"
+        var path = "/analysis/history"
         if let babyId {
-            path += "?baby_id=\(babyId)"
+            path += "?babyId=\(babyId)"
         }
         let req = try makeRequest(path)
-        // Unwrap paginated response
+        // Backend: { data: [...], meta: { total, page, limit, totalPages } }
         let wrapper: HistoryResponse = try await fetch(req)
-        return wrapper.analyses
+        return wrapper.data
     }
 
     func getStats(babyId: String? = nil, days: Int = 30) async throws -> CryStats {
-        var path = "/analyses/stats?days=\(days)"
+        var path = "/analysis/stats?periodDays=\(days)"
         if let babyId {
-            path += "&baby_id=\(babyId)"
+            path += "&babyId=\(babyId)"
         }
         let req = try makeRequest(path)
         return try await fetch(req)
     }
 
     func deleteAnalysis(id: String) async throws {
-        let req = try makeRequest("/analyses/\(id)", method: "DELETE")
-        // DELETE returns 204 No Content — use a dummy Decodable
-        struct Empty: Decodable {}
-        let _: Empty? = try? await fetch(req)
+        let req = try makeRequest("/analysis/\(id)", method: "DELETE")
+        // 204 No Content — nothing to decode
+        _ = try await URLSession.shared.data(for: req)
     }
 }

@@ -21,7 +21,7 @@ struct ProfileView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(user.name)
                                 .font(.headline)
-                            Text(user.email)
+                            Text(user.email ?? "")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
