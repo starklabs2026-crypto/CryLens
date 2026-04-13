@@ -76,10 +76,12 @@ struct LoginView: View {
                 Button {
                     showRegister = true
                 } label: {
-                    Text("Don't have an account? ")
-                        .foregroundStyle(.secondary)
-                    + Text("Register")
-                        .foregroundStyle(coral)
+                    HStack(spacing: 0) {
+                        Text("Don't have an account? ")
+                            .foregroundStyle(.secondary)
+                        Text("Register")
+                            .foregroundStyle(coral)
+                    }
                 }
                 .font(.subheadline)
 
