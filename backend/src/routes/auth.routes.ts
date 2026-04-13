@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, appleSignIn, googleSignIn, me } from '../controllers/auth.controller';
+import { register, login, appleSignIn, googleSignIn, me, deleteMe } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -14,5 +14,6 @@ router.post('/google', googleSignIn);
 
 // Authenticated
 router.get('/me', authenticate, me);
+router.delete('/me', authenticate, deleteMe);
 
 export default router;

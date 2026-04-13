@@ -7,12 +7,14 @@ struct RecordView: View {
 
     @State private var selectedBabyId: String?
     @State private var babies: [Baby] = []
+    @State private var showFilePicker = false
+    @State private var importError: String?
 
     private let coral = Color(hex: "FF6B6B")
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 32) {
+            VStack(spacing: 28) {
 
                 // Baby Selector
                 if babies.isEmpty {
@@ -58,11 +60,28 @@ struct RecordView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // Import button — shown when not recording or analysing
+                if !audioCapture.isRecording && !analysisService.isAnalysing {
+                    Button {
+                        importError = nil
+                        showFilePicker = true
+                    } label: {
+                        Label("Import Audio File", systemImage: "square.and.arrow.down")
+                            .font(.subheadline)
+                            .foregroundStyle(coral)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(coral.opacity(0.1))
+                            .clipShape(Capsule())
+                    }
+                    .disabled(babies.isEmpty)
+                }
+
                 // Analysing indicator
                 if analysisService.isAnalysing {
                     VStack(spacing: 12) {
                         ProgressView()
-                        Text("Analysing cry…")
+                        Text("Analysing cry with AI…")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -76,8 +95,15 @@ struct RecordView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                // Error
+                // Error messages
                 if let err = analysisService.error {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                if let err = importError {
                     Text(err)
                         .font(.caption)
                         .foregroundStyle(.red)
@@ -91,6 +117,19 @@ struct RecordView: View {
             .navigationTitle("CryLens")
             .animation(.spring(), value: analysisService.result)
             .task { await loadBabies() }
+            .fileImporter(
+                isPresented: $showFilePicker,
+                allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first, let babyId = selectedBabyId else { return }
+                    Task { await analysisService.analyseWithAI(audioURL: url, babyId: babyId) }
+                case .failure(let err):
+                    importError = err.localizedDescription
+                }
+            }
         }
     }
 
@@ -150,9 +189,7 @@ struct RecordView: View {
         } else {
             Task {
                 let granted = await audioCapture.requestPermission()
-                if granted {
-                    audioCapture.startRecording()
-                }
+                if granted { audioCapture.startRecording() }
             }
         }
     }
@@ -160,9 +197,7 @@ struct RecordView: View {
     private func loadBabies() async {
         do {
             babies = try await APIService.shared.getBabies()
-            if selectedBabyId == nil {
-                selectedBabyId = babies.first?.id
-            }
+            if selectedBabyId == nil { selectedBabyId = babies.first?.id }
         } catch {}
     }
 }

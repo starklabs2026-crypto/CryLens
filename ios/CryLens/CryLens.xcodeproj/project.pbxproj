@@ -25,6 +25,13 @@
 		ABF00010000000000000AABB /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00010000000000000AABB /* ProfileView.swift */; };
 		ABF00011000000000000AABB /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00011000000000000AABB /* Color+Hex.swift */; };
 		ABF00014000000000000AABB /* CryLensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00014000000000000AABB /* CryLensTests.swift */; };
+		ABF00017000000000000AABB /* SubscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00017000000000000AABB /* SubscriptionService.swift */; };
+		ABF00018000000000000AABB /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00018000000000000AABB /* PaywallView.swift */; };
+		ABF00019000000000000AABB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00019000000000000AABB /* SettingsView.swift */; };
+		ABF0001A000000000000AABB /* LegalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001A000000000000AABB /* LegalView.swift */; };
+		ABF0001B000000000000AABB /* AppleSignInButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001B000000000000AABB /* AppleSignInButton.swift */; };
+		RCBF0000000000000000001A /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = RCPRD000000000000000001A /* RevenueCat */; };
+		GSBF0000000000000000001A /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = GSPRD000000000000000001A /* GoogleSignIn */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +57,11 @@
 		AAF00014000000000000AABB /* CryLensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryLensTests.swift; sourceTree = "<group>"; };
 		AAF00015000000000000AABB /* CryLens.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CryLens.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAF00016000000000000AABB /* CryLensTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CryLensTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAF00017000000000000AABB /* SubscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionService.swift; sourceTree = "<group>"; };
+		AAF00018000000000000AABB /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		AAF00019000000000000AABB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AAF0001A000000000000AABB /* LegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalView.swift; sourceTree = "<group>"; };
+		AAF0001B000000000000AABB /* AppleSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInButton.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +69,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				RCBF0000000000000000001A /* RevenueCat in Frameworks */,
+				GSBF0000000000000000001A /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -109,6 +123,7 @@
 				AAF00004000000000000AABB /* KeychainService.swift */,
 				AAF00005000000000000AABB /* AudioCaptureService.swift */,
 				AAF00006000000000000AABB /* CryAnalysisService.swift */,
+				AAF00017000000000000AABB /* SubscriptionService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -130,6 +145,8 @@
 				AGP00009000000000000AABB /* Analyse */,
 				AGP0000A000000000000AABB /* History */,
 				AGP0000B000000000000AABB /* Profile */,
+				AGP0000F000000000000AABB /* Subscription */,
+				AGP00010000000000000AABB /* Settings */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -139,6 +156,7 @@
 			children = (
 				AAF00009000000000000AABB /* LoginView.swift */,
 				AAF0000A000000000000AABB /* RegisterView.swift */,
+				AAF0001B000000000000AABB /* AppleSignInButton.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -175,6 +193,23 @@
 				AAF00010000000000000AABB /* ProfileView.swift */,
 			);
 			path = Profile;
+			sourceTree = "<group>";
+		};
+		AGP0000F000000000000AABB /* Subscription */ = {
+			isa = PBXGroup;
+			children = (
+				AAF00018000000000000AABB /* PaywallView.swift */,
+			);
+			path = Subscription;
+			sourceTree = "<group>";
+		};
+		AGP00010000000000000AABB /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				AAF00019000000000000AABB /* SettingsView.swift */,
+				AAF0001A000000000000AABB /* LegalView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		AGP0000C000000000000AABB /* Extensions */ = {
@@ -218,6 +253,10 @@
 			dependencies = (
 			);
 			name = CryLens;
+			packageProductDependencies = (
+				RCPRD000000000000000001A /* RevenueCat */,
+				GSPRD000000000000000001A /* GoogleSignIn */,
+			);
 			productName = CryLens;
 			productReference = AAF00015000000000000AABB /* CryLens.app */;
 			productType = "com.apple.product-type.application";
@@ -268,6 +307,10 @@
 			);
 			mainGroup = AGP00001000000000000AABB;
 			productRefGroup = AGP0000D000000000000AABB /* Products */;
+			packageReferences = (
+				RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				GSPKG000000000000000001A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -316,6 +359,11 @@
 				ABF0000F000000000000AABB /* CryDetailView.swift in Sources */,
 				ABF00010000000000000AABB /* ProfileView.swift in Sources */,
 				ABF00011000000000000AABB /* Color+Hex.swift in Sources */,
+				ABF00017000000000000AABB /* SubscriptionService.swift in Sources */,
+				ABF00018000000000000AABB /* PaywallView.swift in Sources */,
+				ABF00019000000000000AABB /* SettingsView.swift in Sources */,
+				ABF0001A000000000000AABB /* LegalView.swift in Sources */,
+				ABF0001B000000000000AABB /* AppleSignInButton.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -572,6 +620,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+		GSPKG000000000000000001A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		RCPRD000000000000000001A /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+		GSPRD000000000000000001A /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = GSPKG000000000000000001A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = APROJ0001000000000000AABB /* Project object */;
 }

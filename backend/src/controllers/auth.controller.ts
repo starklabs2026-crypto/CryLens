@@ -222,3 +222,16 @@ export async function me(req: AuthRequest, res: Response): Promise<void> {
 
   res.json({ user });
 }
+
+// ─── Delete Account ───────────────────────────────────────────────────────────
+
+export async function deleteMe(req: AuthRequest, res: Response): Promise<void> {
+  const userId = req.userId;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  res.status(204).send();
+}

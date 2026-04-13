@@ -9,16 +9,11 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:
-            return "The request URL was invalid."
-        case .noData:
-            return "No data was returned from the server."
-        case .unauthorized:
-            return "You are not authorised. Please sign in again."
-        case .serverError(let message):
-            return "Server error: \(message)"
-        case .decodingError:
-            return "Failed to decode the server response."
+        case .invalidURL:            return "The request URL was invalid."
+        case .noData:                return "No data was returned from the server."
+        case .unauthorized:          return "You are not authorised. Please sign in again."
+        case .serverError(let msg):  return "Server error: \(msg)"
+        case .decodingError:         return "Failed to decode the server response."
         }
     }
 }
@@ -28,53 +23,39 @@ final class APIService {
     private init() {}
 
     private let baseURL = "https://crylens-api-production.up.railway.app"
-    // Backend returns camelCase — use default key decoding
-    private let decoder = JSONDecoder()
+    private let decoder = JSONDecoder()  // Backend is camelCase — default decoding
 
     // MARK: - Request Building
 
-    private func makeRequest(_ path: String, method: String = "GET", body: (any Encodable)? = nil) throws -> URLRequest {
-        guard let url = URL(string: baseURL + path) else {
-            throw APIError.invalidURL
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
+    private func makeRequest(_ path: String,
+                              method: String = "GET",
+                              body: (any Encodable)? = nil) throws -> URLRequest {
+        guard let url = URL(string: baseURL + path) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url)
+        req.httpMethod = method
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token = KeychainService.getToken() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-
-        if let body {
-            request.httpBody = try JSONEncoder().encode(body)
-        }
-        return request
+        if let body { req.httpBody = try JSONEncoder().encode(body) }
+        return req
     }
 
     private func fetch<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.noData }
 
-        guard let http = response as? HTTPURLResponse else {
-            throw APIError.noData
-        }
-
-        if http.statusCode == 401 {
-            throw APIError.unauthorized
-        }
+        if http.statusCode == 401 { throw APIError.unauthorized }
 
         guard (200..<300).contains(http.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw APIError.serverError(message)
+            throw APIError.serverError(String(data: data, encoding: .utf8) ?? "Unknown")
         }
 
         do {
             return try decoder.decode(T.self, from: data)
-        } catch let decodeErr {
-            // Log raw response for debugging
+        } catch let e {
             #if DEBUG
-            if let raw = String(data: data, encoding: .utf8) {
-                print("[APIService] Decode error: \(decodeErr)\nRaw: \(raw)")
-            }
+            print("[APIService] Decode error: \(e)\nRaw: \(String(data: data, encoding: .utf8) ?? "")")
             #endif
             throw APIError.decodingError
         }
@@ -84,65 +65,108 @@ final class APIService {
 
     func register(name: String, email: String, password: String) async throws -> AuthResponse {
         struct Body: Encodable { let name, email, password: String }
-        let req = try makeRequest("/auth/register", method: "POST", body: Body(name: name, email: email, password: password))
-        return try await fetch(req)
+        return try await fetch(try makeRequest("/auth/register", method: "POST",
+                                               body: Body(name: name, email: email, password: password)))
     }
 
     func login(email: String, password: String) async throws -> AuthResponse {
         struct Body: Encodable { let email, password: String }
-        let req = try makeRequest("/auth/login", method: "POST", body: Body(email: email, password: password))
-        return try await fetch(req)
+        return try await fetch(try makeRequest("/auth/login", method: "POST",
+                                               body: Body(email: email, password: password)))
+    }
+
+    func loginWithApple(identityToken: String, name: String?) async throws -> AuthResponse {
+        struct Body: Encodable { let identityToken: String; let name: String? }
+        return try await fetch(try makeRequest("/auth/apple", method: "POST",
+                                               body: Body(identityToken: identityToken, name: name)))
+    }
+
+    func loginWithGoogle(idToken: String) async throws -> AuthResponse {
+        struct Body: Encodable { let idToken: String }
+        return try await fetch(try makeRequest("/auth/google", method: "POST",
+                                               body: Body(idToken: idToken)))
+    }
+
+    func deleteAccount() async throws {
+        // Backend: DELETE /auth/me (requires authentication)
+        let req = try makeRequest("/auth/me", method: "DELETE")
+        _ = try await URLSession.shared.data(for: req)
     }
 
     // MARK: - Babies
 
     func getBabies() async throws -> [Baby] {
-        let req = try makeRequest("/babies")
-        // Backend: { babies: [...] }
-        let wrapper: BabiesResponse = try await fetch(req)
-        return wrapper.babies
+        let r: BabiesResponse = try await fetch(try makeRequest("/babies"))
+        return r.babies
     }
 
     func createBaby(name: String, dob: String) async throws -> Baby {
         struct Body: Encodable { let name, dob: String }
-        let req = try makeRequest("/babies", method: "POST", body: Body(name: name, dob: dob))
-        // Backend: { baby: {...} }
-        let wrapper: BabyResponse = try await fetch(req)
-        return wrapper.baby
+        let r: BabyResponse = try await fetch(try makeRequest("/babies", method: "POST",
+                                                               body: Body(name: name, dob: dob)))
+        return r.baby
+    }
+
+    func updateBaby(id: String, name: String, dob: String) async throws -> Baby {
+        struct Body: Encodable { let name, dob: String }
+        let r: BabyResponse = try await fetch(try makeRequest("/babies/\(id)", method: "PUT",
+                                                               body: Body(name: name, dob: dob)))
+        return r.baby
+    }
+
+    func deleteBaby(id: String) async throws {
+        _ = try await URLSession.shared.data(for: try makeRequest("/babies/\(id)", method: "DELETE"))
     }
 
     // MARK: - Analyses
 
     func logAnalysis(_ analysis: NewCryAnalysis) async throws -> CryAnalysis {
-        let req = try makeRequest("/analysis", method: "POST", body: analysis)
-        // Backend: { analysis: {...} }
-        let wrapper: AnalysisResponse = try await fetch(req)
-        return wrapper.analysis
+        let r: AnalysisResponse = try await fetch(try makeRequest("/analysis", method: "POST", body: analysis))
+        return r.analysis
     }
 
     func getHistory(babyId: String? = nil) async throws -> [CryAnalysis] {
         var path = "/analysis/history"
-        if let babyId {
-            path += "?babyId=\(babyId)"
-        }
-        let req = try makeRequest(path)
-        // Backend: { data: [...], meta: { total, page, limit, totalPages } }
-        let wrapper: HistoryResponse = try await fetch(req)
-        return wrapper.data
+        if let babyId { path += "?babyId=\(babyId)" }
+        let r: HistoryResponse = try await fetch(try makeRequest(path))
+        return r.data
     }
 
     func getStats(babyId: String? = nil, days: Int = 30) async throws -> CryStats {
         var path = "/analysis/stats?periodDays=\(days)"
-        if let babyId {
-            path += "&babyId=\(babyId)"
-        }
-        let req = try makeRequest(path)
-        return try await fetch(req)
+        if let babyId { path += "&babyId=\(babyId)" }
+        return try await fetch(try makeRequest(path))
     }
 
     func deleteAnalysis(id: String) async throws {
-        let req = try makeRequest("/analysis/\(id)", method: "DELETE")
-        // 204 No Content — nothing to decode
-        _ = try await URLSession.shared.data(for: req)
+        _ = try await URLSession.shared.data(for: try makeRequest("/analysis/\(id)", method: "DELETE"))
+    }
+
+    // MARK: - Audio Upload + AI Analysis
+
+    func getUploadURL(babyId: String, fileName: String, mimeType: String) async throws -> UploadURLResponse {
+        struct Body: Encodable { let babyId, fileName, mimeType: String }
+        return try await fetch(try makeRequest("/analysis/upload-url", method: "POST",
+                                               body: Body(babyId: babyId, fileName: fileName, mimeType: mimeType)))
+    }
+
+    func uploadAudioFile(to signedURL: String, fileURL: URL, mimeType: String) async throws {
+        guard let url = URL(string: signedURL) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        req.setValue(mimeType, forHTTPHeaderField: "Content-Type")
+        let data = try Data(contentsOf: fileURL)
+        let (_, response) = try await URLSession.shared.upload(for: req, from: data)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw APIError.serverError("Audio upload failed")
+        }
+    }
+
+    func analyzeAudio(babyId: String, audioPath: String, durationSec: Int) async throws -> CryAnalysis {
+        struct Body: Encodable { let babyId, audioPath: String; let durationSec: Int }
+        let r: AIAnalysisResponse = try await fetch(
+            try makeRequest("/analysis/analyze", method: "POST",
+                            body: Body(babyId: babyId, audioPath: audioPath, durationSec: durationSec)))
+        return r.analysis
     }
 }

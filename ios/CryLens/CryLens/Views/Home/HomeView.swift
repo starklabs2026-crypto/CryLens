@@ -6,19 +6,16 @@ struct HomeView: View {
     var body: some View {
         TabView {
             RecordView()
-                .tabItem {
-                    Label("Record", systemImage: "waveform")
-                }
+                .tabItem { Label("Record", systemImage: "waveform") }
 
             HistoryView()
-                .tabItem {
-                    Label("History", systemImage: "clock")
-                }
+                .tabItem { Label("History", systemImage: "clock") }
 
             ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
+                .tabItem { Label("Profile", systemImage: "person") }
+
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(Color(hex: "FF6B6B"))
     }

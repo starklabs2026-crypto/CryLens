@@ -7,7 +7,6 @@ final class AppState: ObservableObject {
 
     init() {
         if let token = KeychainService.getToken(), !token.isEmpty {
-            // Token exists; mark as logged in. User details will be loaded on demand.
             isLoggedIn = true
         }
     }
@@ -16,11 +15,13 @@ final class AppState: ObservableObject {
         KeychainService.saveToken(response.token)
         currentUser = response.user
         isLoggedIn = true
+        SubscriptionService.shared.login(userId: response.user.id)
     }
 
     func logout() {
         KeychainService.deleteToken()
         currentUser = nil
         isLoggedIn = false
+        SubscriptionService.shared.logout()
     }
 }

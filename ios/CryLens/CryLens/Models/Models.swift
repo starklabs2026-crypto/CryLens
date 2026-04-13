@@ -1,7 +1,8 @@
 import Foundation
 
-// Backend returns camelCase JSON — no custom CodingKeys needed for field mapping.
-// All wrapper structs mirror the actual API envelope shapes.
+// Backend returns camelCase JSON — no custom CodingKeys needed.
+
+// MARK: - Auth
 
 struct User: Codable {
     let id: String
@@ -20,18 +21,12 @@ struct Baby: Codable, Identifiable {
     let id: String
     let userId: String
     let name: String
-    let dob: String          // ISO-8601 date string from Prisma
+    let dob: String
     let createdAt: String?
 }
 
-// API envelopes
-struct BabiesResponse: Codable {
-    let babies: [Baby]
-}
-
-struct BabyResponse: Codable {
-    let baby: Baby
-}
+struct BabiesResponse: Codable { let babies: [Baby] }
+struct BabyResponse: Codable   { let baby: Baby }
 
 // MARK: - CryAnalysis
 
@@ -54,19 +49,11 @@ struct NewCryAnalysis: Codable {
     let notes: String?
 }
 
-// API envelopes
-struct AnalysisResponse: Codable {
-    let analysis: CryAnalysis
-}
+struct AnalysisResponse: Codable { let analysis: CryAnalysis }
 
-// getHistory returns { data: [...], meta: { total, page, limit, totalPages } }
 struct HistoryMeta: Codable {
-    let total: Int
-    let page: Int
-    let limit: Int
-    let totalPages: Int
+    let total, page, limit, totalPages: Int
 }
-
 struct HistoryResponse: Codable {
     let data: [CryAnalysis]
     let meta: HistoryMeta
@@ -80,4 +67,23 @@ struct CryStats: Codable {
     let avgConfidence: Double
     let breakdown: [String: Int]
     let periodDays: Int?
+}
+
+// MARK: - Upload / AI Analysis
+
+struct UploadURLResponse: Codable {
+    let uploadUrl: String
+    let path: String
+    let token: String
+}
+
+struct AIAnalysisResult: Codable {
+    let label: String
+    let confidence: Double
+    let notes: String?
+}
+
+struct AIAnalysisResponse: Codable {
+    let analysis: CryAnalysis
+    let aiResult: AIAnalysisResult
 }
