@@ -47,50 +47,33 @@ function getOpenAIClient(): OpenAI {
   return new OpenAI({ apiKey });
 }
 
-async function transcribeWithHuggingFace(audioBuffer: Buffer, mimeType: string): Promise<string> {
-  const hfToken = process.env.HUGGINGFACE_API_KEY?.trim();
-  // Use whisper-base — fast cold start, works well for short audio
-  const model = 'openai/whisper-base';
+async function transcribeWithWhisper(audioBuffer: Buffer, ext: string): Promise<string> {
+  const openai = getOpenAIClient();
 
-  const headers: Record<string, string> = { 'Content-Type': mimeType };
-  if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`;
+  // whisper-1 needs a File object — create one from the buffer
+  const mimeMap: Record<string, string> = {
+    wav: 'audio/wav', m4a: 'audio/mp4', mp4: 'audio/mp4',
+    mp3: 'audio/mpeg', ogg: 'audio/ogg', webm: 'audio/webm', aac: 'audio/aac',
+  };
+  const mime = mimeMap[ext] ?? 'audio/wav';
+  const filename = `cry.${ext || 'wav'}`;
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
-
-    try {
-      const response = await fetch(
-        `https://api-inference.huggingface.co/models/${model}`,
-        { method: 'POST', headers, body: audioBuffer, signal: controller.signal }
-      );
-      clearTimeout(timeout);
-
-      const raw = await response.json() as { text?: string; error?: string; estimated_time?: number };
-
-      // Model still loading — wait and retry
-      if (raw.error && raw.estimated_time) {
-        console.log(`[CryAnalyzer] HF model loading, waiting ${raw.estimated_time}s (attempt ${attempt})`);
-        await new Promise(r => setTimeout(r, Math.min(raw.estimated_time! * 1000, 15000)));
-        continue;
-      }
-
-      if (raw.error) {
-        console.warn(`[CryAnalyzer] HF error: ${raw.error}`);
-        return '[baby crying]'; // fall back gracefully
-      }
-
-      return raw.text?.trim() || '[baby crying]';
-
-    } catch (err: unknown) {
-      clearTimeout(timeout);
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[CryAnalyzer] HF attempt ${attempt} failed: ${msg}`);
-      if (attempt === 3) return '[baby crying]'; // fall back after 3 failures
-    }
+  try {
+    const file = new File([audioBuffer], filename, { type: mime });
+    const transcription = await openai.audio.transcriptions.create({
+      model: 'whisper-1',
+      file,
+      response_format: 'text',
+      prompt: 'Baby crying audio. Describe any sounds heard.',
+    });
+    const text = (transcription as unknown as string).trim();
+    console.log(`[CryAnalyzer] Whisper transcript: "${text}"`);
+    return text || '[baby crying]';
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[CryAnalyzer] Whisper failed: ${msg}`);
+    return '[baby crying]';
   }
-
-  return '[baby crying]';
 }
 
 async function classifyWithOpenAI(transcript: string, durationSec: number): Promise<CryAnalysisResult> {
@@ -155,9 +138,8 @@ export async function analyzeCryAudio(audioStoragePath: string, durationSec?: nu
   const ext = audioStoragePath.split('.').pop()?.toLowerCase() ?? '';
   const mimeType = AUDIO_MIME_TYPES[ext] ?? 'audio/wav';
 
-  // 4. HuggingFace Whisper → transcript
-  const transcript = await transcribeWithHuggingFace(audioBuffer, mimeType);
-  console.log(`[CryAnalyzer] Whisper transcript: "${transcript}"`);
+  // 4. OpenAI Whisper → transcript
+  const transcript = await transcribeWithWhisper(audioBuffer, ext);
 
   // 5. OpenAI gpt-4o-mini → classify + notes
   return classifyWithOpenAI(transcript, durationSec ?? 5);
