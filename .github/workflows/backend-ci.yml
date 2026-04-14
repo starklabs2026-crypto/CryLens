@@ -36,6 +36,8 @@ jobs:
       SUPABASE_URL: https://placeholder.supabase.co
       SUPABASE_SERVICE_KEY: placeholder
       JWT_SECRET: ci-test-secret-do-not-use-in-production
+      OPENAI_API_KEY: ci-placeholder-openai-key
+      HUGGINGFACE_API_KEY: ci-placeholder-hf-key
       NODE_ENV: test
       PORT: 3000
 
