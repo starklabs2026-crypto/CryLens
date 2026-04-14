@@ -5,7 +5,7 @@ function createGeminiFlash() {
   if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 }
 
 let geminiFlash: ReturnType<typeof createGeminiFlash> | null = null;
