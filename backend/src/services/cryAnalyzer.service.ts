@@ -49,24 +49,48 @@ function getOpenAIClient(): OpenAI {
 
 async function transcribeWithHuggingFace(audioBuffer: Buffer, mimeType: string): Promise<string> {
   const hfToken = process.env.HUGGINGFACE_API_KEY?.trim();
-  const model = 'openai/whisper-large-v3';
+  // Use whisper-base — fast cold start, works well for short audio
+  const model = 'openai/whisper-base';
 
   const headers: Record<string, string> = { 'Content-Type': mimeType };
   if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`;
 
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${model}`,
-    { method: 'POST', headers, body: audioBuffer }
-  );
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`HuggingFace transcription failed (${response.status}): ${err.slice(0, 200)}`);
+    try {
+      const response = await fetch(
+        `https://api-inference.huggingface.co/models/${model}`,
+        { method: 'POST', headers, body: audioBuffer, signal: controller.signal }
+      );
+      clearTimeout(timeout);
+
+      const raw = await response.json() as { text?: string; error?: string; estimated_time?: number };
+
+      // Model still loading — wait and retry
+      if (raw.error && raw.estimated_time) {
+        console.log(`[CryAnalyzer] HF model loading, waiting ${raw.estimated_time}s (attempt ${attempt})`);
+        await new Promise(r => setTimeout(r, Math.min(raw.estimated_time! * 1000, 15000)));
+        continue;
+      }
+
+      if (raw.error) {
+        console.warn(`[CryAnalyzer] HF error: ${raw.error}`);
+        return '[baby crying]'; // fall back gracefully
+      }
+
+      return raw.text?.trim() || '[baby crying]';
+
+    } catch (err: unknown) {
+      clearTimeout(timeout);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[CryAnalyzer] HF attempt ${attempt} failed: ${msg}`);
+      if (attempt === 3) return '[baby crying]'; // fall back after 3 failures
+    }
   }
 
-  const result = await response.json() as { text?: string; error?: string };
-  if (result.error) throw new Error(`HuggingFace error: ${result.error}`);
-  return result.text ?? '[baby crying]';
+  return '[baby crying]';
 }
 
 async function classifyWithOpenAI(transcript: string, durationSec: number): Promise<CryAnalysisResult> {
