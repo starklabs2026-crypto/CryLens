@@ -1,4 +1,4 @@
-import { getGeminiFlash } from '../lib/gemini';
+import OpenAI from 'openai';
 import { supabase, AUDIO_BUCKET } from '../lib/supabase';
 
 export type CryLabelStr = 'hungry' | 'tired' | 'pain' | 'burping' | 'discomfort';
@@ -21,75 +21,120 @@ const AUDIO_MIME_TYPES: Record<string, string> = {
   aac:  'audio/aac',
 };
 
-const SYSTEM_PROMPT = `You are an expert baby cry analyser. Listen carefully to the audio and determine why the baby is crying.
+const CLASSIFY_PROMPT = `You are an expert baby cry analyser with 20 years of experience.
 
-Classify the cry as exactly ONE of these labels:
-- hungry   : cry when the baby needs to be fed
-- tired    : fussing or whimpering when sleepy
-- pain     : sharp, intense, high-pitched cries indicating discomfort or pain
-- burping  : intermittent cries with pauses, usually after feeding
-- discomfort : sustained cries due to environmental discomfort (temperature, wet diaper, etc.)
+You will be given a Whisper transcription of a baby cry recording. Whisper captures acoustic sounds, not just speech — it may output things like "[baby crying]", "[wailing]", "[whimpering]", "[screaming]", "[fussing]", "[hiccuping]", or describe the rhythm and intensity of the cry.
 
-Return ONLY a JSON object with no markdown, no code fences, exactly this shape:
+Using the acoustic description and your knowledge of infant cry patterns, classify why the baby is crying.
+
+Cry type acoustic signatures:
+- hungry: rhythmic, repetitive "neh" pattern, builds gradually, fairly regular pauses, medium pitch
+- tired: whiny, intermittent, lower energy, may include yawning sounds, softer and fading
+- pain: sudden, sharp, high-pitched screaming, intense and sustained, little pause between cries
+- burping: short bursts of crying with hiccup-like pauses, may sound trapped or uncomfortable
+- discomfort: continuous, droning, medium pitch, nasal quality — not urgent but persistent
+
+Return ONLY a JSON object — no markdown, no explanation outside the JSON:
 {
-  "label": "<one of the five labels>",
-  "confidence": <number between 0.0 and 1.0>,
-  "notes": "<one or two sentences explaining the specific acoustic cues that led to this classification>"
+  "label": "<hungry|tired|pain|burping|discomfort>",
+  "confidence": <0.0 to 1.0>,
+  "notes": "<1-2 sentences: what acoustic cues led to this classification and what the parent should do>"
 }`;
 
-export async function analyzeCryAudio(audioStoragePath: string): Promise<CryAnalysisResult> {
-  // 1. Get a short-lived signed URL for the stored audio
-  const { data: signedData, error: signedError } = await supabase.storage
-    .from(AUDIO_BUCKET)
-    .createSignedUrl(audioStoragePath, 120); // 2-minute window
+function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) throw new Error('OPENAI_API_KEY must be set');
+  return new OpenAI({ apiKey });
+}
 
-  if (signedError || !signedData?.signedUrl) {
-    throw new Error('Failed to create signed URL for audio file');
-  }
+async function transcribeWithHuggingFace(audioBuffer: Buffer, mimeType: string): Promise<string> {
+  const hfToken = process.env.HUGGINGFACE_API_KEY?.trim();
+  const model = 'openai/whisper-large-v3';
 
-  // 2. Download audio bytes
-  const response = await fetch(signedData.signedUrl);
+  const headers: Record<string, string> = { 'Content-Type': mimeType };
+  if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`;
+
+  const response = await fetch(
+    `https://api-inference.huggingface.co/models/${model}`,
+    { method: 'POST', headers, body: audioBuffer }
+  );
+
   if (!response.ok) {
-    throw new Error(`Failed to download audio: ${response.status} ${response.statusText}`);
+    const err = await response.text();
+    throw new Error(`HuggingFace transcription failed (${response.status}): ${err.slice(0, 200)}`);
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+  const result = await response.json() as { text?: string; error?: string };
+  if (result.error) throw new Error(`HuggingFace error: ${result.error}`);
+  return result.text ?? '[baby crying]';
+}
 
-  // 3. Derive MIME type from file extension
-  const ext = audioStoragePath.split('.').pop()?.toLowerCase() ?? '';
-  const mimeType = AUDIO_MIME_TYPES[ext] ?? 'audio/mp4';
+async function classifyWithOpenAI(transcript: string, durationSec: number): Promise<CryAnalysisResult> {
+  const openai = getOpenAIClient();
 
-  // 4. Send to Gemini 2.0 Flash
-  const result = await getGeminiFlash().generateContent([
-    SYSTEM_PROMPT,
-    {
-      inlineData: {
-        mimeType,
-        data: base64Audio,
-      },
-    },
-  ]);
+  const userMessage = `Whisper transcription of a ${durationSec}-second baby cry recording: "${transcript}"
 
-  const raw = result.response.text().trim();
+Classify why this baby is crying.`;
 
-  // 5. Strip accidental markdown fences if model adds them
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: CLASSIFY_PROMPT },
+      { role: 'user',   content: userMessage },
+    ],
+    temperature: 0.3,
+    max_tokens: 200,
+  });
+
+  const raw = completion.choices[0]?.message?.content?.trim() ?? '';
   const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
   let parsed: { label: string; confidence: number; notes: string };
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
-    throw new Error(`Gemini returned non-JSON response: ${raw.slice(0, 200)}`);
+    throw new Error(`OpenAI returned non-JSON: ${raw.slice(0, 200)}`);
   }
 
   const label = parsed.label?.toLowerCase() as CryLabelStr;
   if (!VALID_LABELS.includes(label)) {
-    throw new Error(`Gemini returned unknown label: ${parsed.label}`);
+    throw new Error(`Unknown label from OpenAI: ${parsed.label}`);
   }
 
-  const confidence = Math.min(1, Math.max(0, Number(parsed.confidence) || 0));
-  const notes = String(parsed.notes ?? '').slice(0, 500);
+  return {
+    label,
+    confidence: Math.min(1, Math.max(0, Number(parsed.confidence) || 0.7)),
+    notes: String(parsed.notes ?? '').slice(0, 500),
+  };
+}
 
-  return { label, confidence, notes };
+export async function analyzeCryAudio(audioStoragePath: string, durationSec?: number): Promise<CryAnalysisResult> {
+  // 1. Get signed URL for the stored audio
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from(AUDIO_BUCKET)
+    .createSignedUrl(audioStoragePath, 120);
+
+  if (signedError || !signedData?.signedUrl) {
+    throw new Error('Failed to create signed URL for audio file');
+  }
+
+  // 2. Download audio
+  const response = await fetch(signedData.signedUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download audio: ${response.status}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const audioBuffer = Buffer.from(arrayBuffer);
+
+  // 3. Derive MIME type
+  const ext = audioStoragePath.split('.').pop()?.toLowerCase() ?? '';
+  const mimeType = AUDIO_MIME_TYPES[ext] ?? 'audio/wav';
+
+  // 4. HuggingFace Whisper → transcript
+  const transcript = await transcribeWithHuggingFace(audioBuffer, mimeType);
+  console.log(`[CryAnalyzer] Whisper transcript: "${transcript}"`);
+
+  // 5. OpenAI gpt-4o-mini → classify + notes
+  return classifyWithOpenAI(transcript, durationSec ?? 5);
 }

@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { CryLabel } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { isGeminiConfigured } from '../lib/gemini';
 import { supabase, AUDIO_BUCKET } from '../lib/supabase';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { analyzeCryAudio } from '../services/cryAnalyzer.service';
@@ -202,14 +201,14 @@ export async function analyzeAudio(req: AuthRequest, res: Response): Promise<voi
     return;
   }
 
-  if (!isGeminiConfigured()) {
-    res.status(503).json({ error: 'AI analysis unavailable', detail: 'GEMINI_API_KEY is not configured' });
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    res.status(503).json({ error: 'AI analysis unavailable', detail: 'OPENAI_API_KEY is not configured' });
     return;
   }
 
   let result;
   try {
-    result = await analyzeCryAudio(audioPath);
+    result = await analyzeCryAudio(audioPath, durationSec);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Analysis failed';
     res.status(502).json({ error: 'AI analysis failed', detail: message });
