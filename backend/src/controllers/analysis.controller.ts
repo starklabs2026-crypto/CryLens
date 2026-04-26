@@ -122,7 +122,8 @@ export async function getHistory(req: AuthRequest, res: Response): Promise<void>
 
 export async function getStats(req: AuthRequest, res: Response): Promise<void> {
   const babyId = req.query.babyId as string | undefined;
-  const periodDays = Math.max(1, parseInt(String(req.query.periodDays ?? '30'), 10));
+  const parsedPeriodDays = parseInt(String(req.query.periodDays ?? '30'), 10);
+  const periodDays = Number.isNaN(parsedPeriodDays) ? 30 : Math.max(0, parsedPeriodDays);
 
   if (babyId) {
     const baby = await prisma.baby.findUnique({ where: { id: babyId } });
