@@ -3,11 +3,13 @@ import SwiftUI
 struct RecordView: View {
     @StateObject private var audioCapture = AudioCaptureService()
     @StateObject private var analysisService = CryAnalysisService()
+    @StateObject private var sub = SubscriptionService.shared
     @EnvironmentObject private var appState: AppState
 
     @State private var selectedBabyId: String?
     @State private var babies: [Baby] = []
     @State private var showFilePicker = false
+    @State private var showPaywall = false
     @State private var importError: String?
 
     private let coral = Color(hex: "FF6B6B")
@@ -30,6 +32,24 @@ struct RecordView: View {
                     }
                     .pickerStyle(.menu)
                     .tint(coral)
+                }
+
+                if !sub.isPro {
+                    VStack(spacing: 6) {
+                        Text(appState.remainingFreeAnalyses > 0
+                             ? "\(appState.remainingFreeAnalyses) free analyses left"
+                             : "Free analyses used")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(appState.remainingFreeAnalyses > 0 ? coral : .red)
+
+                        Text(appState.remainingFreeAnalyses > 0
+                             ? "Try CryLens before subscribing. After \(appState.freeAnalysisLimit) analyses, Pro is required."
+                             : "Upgrade to CryLens Pro to keep analysing new recordings.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal)
                 }
 
                 Spacer()
@@ -116,7 +136,15 @@ struct RecordView: View {
             .padding(.horizontal, 24)
             .navigationTitle("CryLens")
             .animation(.spring(), value: analysisService.result)
-            .task { await loadBabies() }
+            .task {
+                await loadBabies()
+                await appState.refreshAnalysisUsage()
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
             .fileImporter(
                 isPresented: $showFilePicker,
                 allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff],
@@ -125,7 +153,16 @@ struct RecordView: View {
                 switch result {
                 case .success(let urls):
                     guard let url = urls.first, let babyId = selectedBabyId else { return }
-                    Task { await analysisService.analyseWithAI(audioURL: url, babyId: babyId) }
+                    guard canStartAnalysis else {
+                        showPaywall = true
+                        return
+                    }
+                    Task {
+                        await analysisService.analyseWithAI(audioURL: url, babyId: babyId)
+                        if analysisService.error == nil {
+                            await appState.refreshAnalysisUsage()
+                        }
+                    }
                 case .failure(let err):
                     importError = err.localizedDescription
                 }
@@ -138,8 +175,9 @@ struct RecordView: View {
     @ViewBuilder
     private func resultCard(label: CryLabel, confidence: Double) -> some View {
         VStack(spacing: 16) {
-            Text(label.displayName.prefix(2).description)
+            Image(systemName: label.symbolName)
                 .font(.system(size: 56))
+                .foregroundStyle(label.color)
 
             Text(label.displayName)
                 .font(.title2.bold())
@@ -184,9 +222,16 @@ struct RecordView: View {
                   let babyId = selectedBabyId else { return }
             Task {
                 await analysisService.analyse(audioURL: url, babyId: babyId)
+                if analysisService.error == nil {
+                    await appState.refreshAnalysisUsage()
+                }
                 audioCapture.deleteRecording(at: url)
             }
         } else {
+            guard canStartAnalysis else {
+                showPaywall = true
+                return
+            }
             Task {
                 let granted = await audioCapture.requestPermission()
                 if granted { audioCapture.startRecording() }
@@ -195,9 +240,21 @@ struct RecordView: View {
     }
 
     private func loadBabies() async {
+        #if DEBUG
+        if DebugLaunchOptions.isScreenshotMode {
+            babies = DebugLaunchOptions.screenshotBabies
+            if selectedBabyId == nil { selectedBabyId = babies.first?.id }
+            return
+        }
+        #endif
+
         do {
             babies = try await APIService.shared.getBabies()
             if selectedBabyId == nil { selectedBabyId = babies.first?.id }
         } catch {}
+    }
+
+    private var canStartAnalysis: Bool {
+        sub.isPro || appState.hasFreeAnalysisAccess
     }
 }

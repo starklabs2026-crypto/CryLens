@@ -24,6 +24,7 @@ model User {
   name         String
   appleId      String?  @unique
   googleId     String?  @unique
+  freeAnalysesUsed Int  @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

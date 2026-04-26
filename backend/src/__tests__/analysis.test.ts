@@ -128,6 +128,19 @@ describeIfDatabase('GET /analysis/history', () => {
   });
 });
 
+describeIfDatabase('GET /analysis/usage', () => {
+  it('returns lifetime free analysis usage', async () => {
+    const res = await request(app)
+      .get('/analysis/usage')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('freeAnalysesUsed');
+    expect(res.body).toHaveProperty('freeAnalysisLimit', 5);
+    expect(res.body.freeAnalysesUsed).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describeIfDatabase('GET /analysis/stats', () => {
   it('returns stats for the user', async () => {
     const res = await request(app)
@@ -160,6 +173,15 @@ describeIfDatabase('DELETE /analysis/:id', () => {
       .set('Authorization', `Bearer ${authToken}`);
 
     expect(res.status).toBe(204);
+  });
+
+  it('does not reduce lifetime free usage after deletion', async () => {
+    const res = await request(app)
+      .get('/analysis/usage')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.freeAnalysesUsed).toBeGreaterThanOrEqual(1);
   });
 
   it('returns 404 for already deleted analysis', async () => {

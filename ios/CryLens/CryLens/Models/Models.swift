@@ -63,6 +63,12 @@ struct HistoryResponse: Codable {
     let meta: HistoryMeta
 }
 
+struct FreeAnalysisUsageResponse: Codable {
+    let freeAnalysesUsed: Int
+    let freeAnalysisLimit: Int
+    let remainingFreeAnalyses: Int
+}
+
 // MARK: - Stats
 
 struct CryStats: Codable {
@@ -90,4 +96,43 @@ struct AIAnalysisResult: Codable {
 struct AIAnalysisResponse: Codable {
     let analysis: CryAnalysis
     let aiResult: AIAnalysisResult
+}
+
+// MARK: - Date Helpers
+
+enum AppDate {
+    private static let isoFormatters: [ISO8601DateFormatter] = {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+
+        return [fractional, standard]
+    }()
+
+    static func parse(_ value: String) -> Date? {
+        for formatter in isoFormatters {
+            if let date = formatter.date(from: value) {
+                return date
+            }
+        }
+        return nil
+    }
+
+    static func babyAgeString(from value: String, now: Date = Date()) -> String {
+        guard let date = parse(value) else { return value }
+
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: date, to: now)
+        if let years = comps.year, years > 0 {
+            return "\(years) yr\(years == 1 ? "" : "s") old"
+        }
+        if let months = comps.month, months > 0 {
+            return "\(months) mo old"
+        }
+        if let days = comps.day {
+            return "\(days) day\(days == 1 ? "" : "s") old"
+        }
+        return value
+    }
 }

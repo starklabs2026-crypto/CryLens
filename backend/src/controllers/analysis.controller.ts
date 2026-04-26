@@ -7,6 +7,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { analyzeCryAudio } from '../services/cryAnalyzer.service';
 
 const CRY_LABELS = ['hungry', 'tired', 'pain', 'burping', 'discomfort'] as const;
+const FREE_ANALYSIS_LIMIT = 5;
 
 const createAnalysisSchema = z.object({
   babyId: z.string().uuid('babyId must be a UUID'),
@@ -71,11 +72,44 @@ export async function createAnalysis(req: AuthRequest, res: Response): Promise<v
     return;
   }
 
-  const analysis = await prisma.cryAnalysis.create({
-    data: { babyId, label: label as CryLabel, confidence, durationSec, notes, audioUrl },
+  const analysis = await prisma.$transaction(async (tx) => {
+    const created = await tx.cryAnalysis.create({
+      data: { babyId, label: label as CryLabel, confidence, durationSec, notes, audioUrl },
+    });
+
+    await tx.$executeRaw`
+      UPDATE "User"
+      SET "freeAnalysesUsed" = COALESCE("freeAnalysesUsed", 0) + 1
+      WHERE "id" = ${req.userId}
+    `;
+
+    return created;
   });
 
   res.status(201).json({ analysis });
+}
+
+export async function getUsage(req: AuthRequest, res: Response): Promise<void> {
+  const rows = await prisma.$queryRaw<Array<{ freeAnalysesUsed: number | null }>>`
+    SELECT COALESCE("freeAnalysesUsed", 0) AS "freeAnalysesUsed"
+    FROM "User"
+    WHERE "id" = ${req.userId}
+    LIMIT 1
+  `;
+
+  const user = rows[0];
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  const freeAnalysesUsed = user.freeAnalysesUsed ?? 0;
+
+  res.json({
+    freeAnalysesUsed,
+    freeAnalysisLimit: FREE_ANALYSIS_LIMIT,
+    remainingFreeAnalyses: Math.max(0, FREE_ANALYSIS_LIMIT - freeAnalysesUsed),
+  });
 }
 
 export async function getHistory(req: AuthRequest, res: Response): Promise<void> {
@@ -203,15 +237,25 @@ export async function analyzeAudio(req: AuthRequest, res: Response): Promise<voi
     return;
   }
 
-  const analysis = await prisma.cryAnalysis.create({
-    data: {
-      babyId,
-      label: result.label as CryLabel,
-      confidence: result.confidence,
-      durationSec,
-      notes: result.notes,
-      audioUrl: audioPath,
-    },
+  const analysis = await prisma.$transaction(async (tx) => {
+    const created = await tx.cryAnalysis.create({
+      data: {
+        babyId,
+        label: result.label as CryLabel,
+        confidence: result.confidence,
+        durationSec,
+        notes: result.notes,
+        audioUrl: audioPath,
+      },
+    });
+
+    await tx.$executeRaw`
+      UPDATE "User"
+      SET "freeAnalysesUsed" = COALESCE("freeAnalysesUsed", 0) + 1
+      WHERE "id" = ${req.userId}
+    `;
+
+    return created;
   });
 
   res.status(201).json({ analysis, aiResult: result });

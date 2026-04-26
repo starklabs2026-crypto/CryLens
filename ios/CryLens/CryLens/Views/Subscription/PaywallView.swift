@@ -3,15 +3,28 @@ import RevenueCat
 
 struct PaywallView: View {
     @StateObject private var sub = SubscriptionService.shared
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedPlan: Plan = .annual
+    @State private var selectedPlan: Plan = .yearly
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showSuccessAlert = false
 
-    enum Plan { case monthly, annual }
+    enum Plan { case weekly, yearly }
 
     private let coral = Color(hex: "FF6B6B")
+    private let weeklyPrice = 9.99
+    private let yearlyPrice = 49.99
+
+    private var annualizedWeeklyCost: Double { weeklyPrice * 52 }
+    private var yearlyDiscountPercent: Int {
+        let discount = ((annualizedWeeklyCost - yearlyPrice) / annualizedWeeklyCost) * 100
+        return Int(discount.rounded())
+    }
+    private var yearlyEffectiveWeeklyPrice: String {
+        String(format: "$%.2f/week", yearlyPrice / 52)
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,14 +33,19 @@ struct PaywallView: View {
 
                     // Hero
                     VStack(spacing: 8) {
-                        Image(systemName: "waveform.circle.fill")
-                            .font(.system(size: 64))
-                            .foregroundStyle(coral)
+                        CryLensLogo(size: 92)
                         Text("CryLens Pro")
                             .font(.largeTitle.bold())
                         Text("Understand every cry, unlimited.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                        if !sub.isPro {
+                            Text(appState.remainingFreeAnalyses > 0
+                                 ? "\(appState.remainingFreeAnalyses) free analyses remaining"
+                                 : "Your free analyses are used up")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(appState.remainingFreeAnalyses > 0 ? coral : .red)
+                        }
                     }
                     .padding(.top, 8)
 
@@ -45,17 +63,22 @@ struct PaywallView: View {
 
                     // Plan cards
                     VStack(spacing: 12) {
-                        planCard(.annual,
-                                 title: "Annual",
-                                 price: "$19.99 / year",
-                                 sub: "Only $1.67/month · Save 67%",
-                                 badge: "BEST VALUE")
-                        planCard(.monthly,
-                                 title: "Monthly",
-                                 price: "$4.99 / month",
-                                 sub: "Billed monthly, cancel anytime",
+                        planCard(.yearly,
+                                 title: "Yearly",
+                                 price: "$49.99 / year",
+                                 sub: "7-day free trial · Save \(yearlyDiscountPercent)%",
+                                 badge: "7-DAY TRIAL")
+                        planCard(.weekly,
+                                 title: "Weekly",
+                                 price: "$9.99 / week",
+                                 sub: "No trial · Cancel anytime",
                                  badge: nil)
                     }
+
+                    Text("Yearly works out to \(yearlyEffectiveWeeklyPrice) instead of $9.99/week, a \(yearlyDiscountPercent)% discount versus paying weekly all year.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
 
                     // CTA
                     Button(action: subscribe) {
@@ -66,7 +89,7 @@ struct PaywallView: View {
                             if isLoading {
                                 ProgressView().tint(.white)
                             } else {
-                                Text("Start Free Trial")
+                                Text(selectedPlan == .yearly ? "Start 7-Day Free Trial" : "Subscribe Weekly")
                                     .font(.headline)
                                     .foregroundStyle(.white)
                             }
@@ -86,6 +109,13 @@ struct PaywallView: View {
                     }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                    Text(selectedPlan == .yearly
+                         ? "After the 7-day trial, CryLens Pro renews at $49.99/year unless cancelled at least 24 hours before renewal."
+                         : "CryLens Pro renews at $9.99/week unless cancelled at least 24 hours before renewal.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
 
                     // Legal links
                     HStack(spacing: 8) {
@@ -116,8 +146,16 @@ struct PaywallView: View {
         }
         .task {
             if sub.isConfigured {
+                await sub.refreshStatus()
                 await sub.fetchOffering()
             }
+        }
+        .alert("You're Pro now", isPresented: $showSuccessAlert) {
+            Button("Continue") {
+                dismiss()
+            }
+        } message: {
+            Text("Your subscription is active and CryLens Pro features are unlocked.")
         }
     }
 
@@ -170,15 +208,19 @@ struct PaywallView: View {
             errorMessage = nil
 
             if let offering = sub.currentOffering {
-                let identifier = selectedPlan == .annual ? "$rc_annual" : "$rc_monthly"
+                let identifier = selectedPlan == .yearly ? "$rc_annual" : "$rc_weekly"
                 let pkg = offering.package(identifier: identifier)
-                    ?? (selectedPlan == .annual ? offering.annual : offering.monthly)
+                    ?? (selectedPlan == .yearly ? offering.annual : offering.weekly)
                     ?? offering.availablePackages.first
 
                 if let pkg {
                     do {
                         try await sub.purchase(package: pkg)
-                        if sub.isPro { dismiss() }
+                        if sub.isPro {
+                            showSuccessAlert = true
+                        } else {
+                            errorMessage = "Purchase completed, but Pro has not unlocked yet. Tap Restore Purchases or reopen the app in a few seconds."
+                        }
                     } catch {
                         if (error as NSError).code != 2 {
                             errorMessage = error.localizedDescription
@@ -200,7 +242,7 @@ struct PaywallView: View {
         errorMessage = nil
         do {
             try await sub.restorePurchases()
-            if sub.isPro { dismiss() }
+            if sub.isPro { showSuccessAlert = true }
             else { errorMessage = "No active subscription found." }
         } catch {
             errorMessage = error.localizedDescription

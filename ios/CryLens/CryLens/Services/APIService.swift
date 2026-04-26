@@ -148,6 +148,10 @@ final class APIService {
         return r.data
     }
 
+    func getFreeAnalysisUsage() async throws -> FreeAnalysisUsageResponse {
+        try await fetch(try makeRequest("/analysis/usage"))
+    }
+
     func getStats(babyId: String? = nil, days: Int = 30) async throws -> CryStats {
         var path = "/analysis/stats?periodDays=\(days)"
         if let babyId { path += "&babyId=\(babyId)" }
