@@ -34,6 +34,28 @@
     .muted { color: var(--muted); }
     a { color: var(--accent); }
     ul { padding-left: 1.25rem; }
+    .section {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .callout {
+      background: #fff3f0;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 20px;
+      margin-top: 1rem;
+    }
+    .footer-links {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.95em;
+    }
   </style>
 </head>
 <body>
@@ -41,8 +63,14 @@
     <div class="card">
       <p class="muted">CryLens Support</p>
       <h1>How can we help?</h1>
-      <p>Email us at <a href="mailto:support@starklabs.app">support@starklabs.app</a>. Include your device model, iOS version, app version, and a short description of the issue.</p>
+      <p>If you need help with login, recording, analysis results, or subscriptions, email <a href="mailto:starklabs2026@gmail.com">starklabs2026@gmail.com</a>.</p>
 
+      <div class="callout">
+        <strong>When you contact support</strong>
+        <p>Include your device model, iOS version, app version, and a short description of what went wrong. If you saw an error message, include that too.</p>
+      </div>
+
+      <div class="section">
       <h2>Common Questions</h2>
       <ul>
         <li><strong>Google Sign-In is failing.</strong> Confirm the app is using the correct iOS client ID and your backend has the matching <code>GOOGLE_CLIENT_ID</code>.</li>
@@ -50,8 +78,10 @@
         <li><strong>Subscriptions are not showing.</strong> Confirm products are approved in App Store Connect, mapped in RevenueCat, and the app is using the correct public SDK key.</li>
         <li><strong>Sandbox purchases do not work.</strong> Sign out of your regular App Store account in the simulator or device sandbox prompt and use an App Store Connect sandbox tester account.</li>
       </ul>
+      </div>
 
-      <h2>Support Request Template</h2>
+      <div class="section">
+      <h2>Support Request Checklist</h2>
       <p>When you contact support, include:</p>
       <ul>
         <li>App version and build number</li>
@@ -59,12 +89,16 @@
         <li>Whether the issue is on login, recording, analysis, or subscription purchase</li>
         <li>Any on-screen error text or screenshots</li>
       </ul>
+      </div>
 
+      <div class="section">
       <h2>Privacy and Terms</h2>
-      <ul>
-        <li><a href="./privacy.html">Privacy Policy</a></li>
-        <li><a href="./terms.html">Terms of Use</a></li>
-      </ul>
+      <p>CryLens also publishes the following legal pages:</p>
+      <div class="footer-links">
+        <a href="./privacy.html">Privacy Policy</a>
+        <a href="./terms.html">Terms of Use</a>
+      </div>
+      </div>
     </div>
   </main>
 </body>

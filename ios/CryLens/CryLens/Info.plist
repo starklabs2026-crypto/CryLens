@@ -8,6 +8,8 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundleDisplayName</key>
 	<string>CryLens</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundleShortVersionString</key>
@@ -31,7 +33,7 @@
 	<key>RevenueCatAPIKey</key>
 	<string>appl_EBnUyCfoTPNRtxvLhtvrJradlbv</string>
 	<key>SupportEmail</key>
-	<string>support@starklabs.app</string>
+	<string>starklabs2026@gmail.com</string>
 	<key>SupportURL</key>
 	<string>https://starklabs2026-crypto.github.io/CryLens/support.html</string>
 	<key>TermsOfUseURL</key>

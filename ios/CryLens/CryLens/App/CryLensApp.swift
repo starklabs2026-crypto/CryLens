@@ -2,7 +2,7 @@ import SwiftUI
 import GoogleSignIn
 
 enum AppConfig {
-    private static let defaultSupportEmail = "support@starklabs.app"
+    private static let defaultSupportEmail = "starklabs2026@gmail.com"
     private static let defaultSupportURL = "https://starklabs2026-crypto.github.io/CryLens/support.html"
     private static let defaultPrivacyPolicyURL = "https://starklabs2026-crypto.github.io/CryLens/privacy.html"
     private static let defaultTermsOfUseURL = "https://starklabs2026-crypto.github.io/CryLens/terms.html"
