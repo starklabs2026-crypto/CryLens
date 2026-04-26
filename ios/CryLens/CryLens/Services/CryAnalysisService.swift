@@ -32,9 +32,14 @@ final class CryAnalysisService: ObservableObject {
             let analysis = try await APIService.shared.analyzeAudio(
                 babyId: babyId, audioPath: uploadInfo.path, durationSec: dur)
 
-            let label = CryLabel(rawValue: analysis.label) ?? .discomfort
             await MainActor.run {
-                self.result = label; self.confidence = analysis.confidence; self.isAnalysing = false
+                if let label = CryLabel(rawValue: analysis.label) {
+                    self.result = label
+                    self.confidence = analysis.confidence
+                } else {
+                    self.error = "AI returned unsupported label: \(analysis.label)"
+                }
+                self.isAnalysing = false
             }
         } catch {
             await MainActor.run { self.error = error.localizedDescription; self.isAnalysing = false }
