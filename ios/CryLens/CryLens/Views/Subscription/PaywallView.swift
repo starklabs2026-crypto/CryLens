@@ -150,12 +150,12 @@ struct PaywallView: View {
                 await sub.fetchOffering()
             }
         }
-        .alert("You're Pro now", isPresented: $showSuccessAlert) {
+        .alert("Subscription Confirmed", isPresented: $showSuccessAlert) {
             Button("Continue") {
                 dismiss()
             }
         } message: {
-            Text("Your subscription is active and CryLens Pro features are unlocked.")
+            Text("Enjoy CryLens Pro.")
         }
     }
 

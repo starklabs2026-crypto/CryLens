@@ -95,11 +95,6 @@ struct SettingsView: View {
                             Spacer()
                             Text(appVersion).foregroundStyle(.secondary)
                         }
-                        HStack {
-                            Text("Build")
-                            Spacer()
-                            Text(buildNumber).foregroundStyle(.secondary)
-                        }
                     }
 
                     // MARK: Account
@@ -177,9 +172,6 @@ struct SettingsView: View {
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-    }
-    private var buildNumber: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
 
     private func deleteAccount() async {
