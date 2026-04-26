@@ -2,6 +2,11 @@ import SwiftUI
 import GoogleSignIn
 
 enum AppConfig {
+    private static let defaultSupportEmail = "support@starklabs.app"
+    private static let defaultSupportURL = "https://starklabs2026-crypto.github.io/CryLens/support.html"
+    private static let defaultPrivacyPolicyURL = "https://starklabs2026-crypto.github.io/CryLens/privacy.html"
+    private static let defaultTermsOfUseURL = "https://starklabs2026-crypto.github.io/CryLens/terms.html"
+
     private static func infoString(_ key: String) -> String {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
             return ""
@@ -15,9 +20,16 @@ enum AppConfig {
 
     static let googleClientID = infoString("GoogleClientID")
     static let revenueCatAPIKey = infoString("RevenueCatAPIKey")
+    static let supportEmail = infoString("SupportEmail").isEmpty ? defaultSupportEmail : infoString("SupportEmail")
+    static let supportURLString = infoString("SupportURL").isEmpty ? defaultSupportURL : infoString("SupportURL")
+    static let privacyPolicyURLString = infoString("PrivacyPolicyURL").isEmpty ? defaultPrivacyPolicyURL : infoString("PrivacyPolicyURL")
+    static let termsOfUseURLString = infoString("TermsOfUseURL").isEmpty ? defaultTermsOfUseURL : infoString("TermsOfUseURL")
 
     static let isGoogleSignInConfigured = !isPlaceholder(googleClientID)
     static let isRevenueCatConfigured = !isPlaceholder(revenueCatAPIKey)
+    static let supportURL = URL(string: supportURLString)
+    static let privacyPolicyURL = URL(string: privacyPolicyURLString)
+    static let termsOfUseURL = URL(string: termsOfUseURLString)
 }
 
 @main

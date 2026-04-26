@@ -5,12 +5,14 @@ import { prisma } from '../lib/prisma';
 const UNIQUE = Date.now();
 const USER_EMAIL = `test-analysis-${UNIQUE}@crylens.test`;
 const USER_PASSWORD = 'password123';
+const describeIfDatabase = process.env.DATABASE_URL ? describe : describe.skip;
 
 let authToken: string;
 let babyId: string;
 let analysisId: string;
 
 beforeAll(async () => {
+  if (!process.env.DATABASE_URL) { return; }
   const regRes = await request(app).post('/auth/register').send({
     email: USER_EMAIL,
     password: USER_PASSWORD,
@@ -26,11 +28,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (!process.env.DATABASE_URL) { return; }
   await prisma.user.deleteMany({ where: { email: { endsWith: '@crylens.test' } } });
   await prisma.$disconnect();
 });
 
-describe('POST /analysis', () => {
+describeIfDatabase('POST /analysis', () => {
   it('creates a valid cry analysis', async () => {
     const res = await request(app)
       .post('/analysis')
@@ -94,7 +97,7 @@ describe('POST /analysis', () => {
   });
 });
 
-describe('GET /analysis/history', () => {
+describeIfDatabase('GET /analysis/history', () => {
   it('returns paginated history', async () => {
     const res = await request(app)
       .get('/analysis/history')
@@ -125,7 +128,7 @@ describe('GET /analysis/history', () => {
   });
 });
 
-describe('GET /analysis/stats', () => {
+describeIfDatabase('GET /analysis/stats', () => {
   it('returns stats for the user', async () => {
     const res = await request(app)
       .get('/analysis/stats')
@@ -150,7 +153,7 @@ describe('GET /analysis/stats', () => {
   });
 });
 
-describe('DELETE /analysis/:id', () => {
+describeIfDatabase('DELETE /analysis/:id', () => {
   it('deletes an existing analysis', async () => {
     const res = await request(app)
       .delete(`/analysis/${analysisId}`)

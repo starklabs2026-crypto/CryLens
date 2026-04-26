@@ -18,6 +18,12 @@ enum APIError: LocalizedError {
     }
 }
 
+private struct APIErrorPayload: Decodable {
+    let error: String?
+    let detail: String?
+    let message: String?
+}
+
 final class APIService {
     static let shared = APIService()
     private init() {}
@@ -48,6 +54,13 @@ final class APIService {
         if http.statusCode == 401 { throw APIError.unauthorized }
 
         guard (200..<300).contains(http.statusCode) else {
+            if let payload = try? decoder.decode(APIErrorPayload.self, from: data) {
+                let message = [payload.error, payload.detail, payload.message]
+                    .compactMap { $0 }
+                    .joined(separator: ": ")
+                throw APIError.serverError(message.isEmpty ? "Unknown" : message)
+            }
+
             throw APIError.serverError(String(data: data, encoding: .utf8) ?? "Unknown")
         }
 

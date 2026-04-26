@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CryLens Support</title>
+  <style>
+    :root {
+      --bg: #fffaf8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #ff6b6b;
+      --border: #f0d8d3;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #fff6f2 0%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    main { max-width: 860px; margin: 0 auto; padding: 48px 20px 72px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(255, 107, 107, 0.08);
+    }
+    h1, h2 { line-height: 1.2; }
+    h1 { margin-top: 0; font-size: 2.5rem; }
+    h2 { margin-top: 2rem; font-size: 1.2rem; color: var(--accent); }
+    .muted { color: var(--muted); }
+    a { color: var(--accent); }
+    ul { padding-left: 1.25rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <p class="muted">CryLens Support</p>
+      <h1>How can we help?</h1>
+      <p>Email us at <a href="mailto:support@starklabs.app">support@starklabs.app</a>. Include your device model, iOS version, app version, and a short description of the issue.</p>
+
+      <h2>Common Questions</h2>
+      <ul>
+        <li><strong>Google Sign-In is failing.</strong> Confirm the app is using the correct iOS client ID and your backend has the matching <code>GOOGLE_CLIENT_ID</code>.</li>
+        <li><strong>Apple Sign-In is failing.</strong> Confirm Sign in with Apple is enabled for the app ID and the backend <code>APPLE_CLIENT_ID</code> matches the iOS bundle identifier.</li>
+        <li><strong>Subscriptions are not showing.</strong> Confirm products are approved in App Store Connect, mapped in RevenueCat, and the app is using the correct public SDK key.</li>
+        <li><strong>Sandbox purchases do not work.</strong> Sign out of your regular App Store account in the simulator or device sandbox prompt and use an App Store Connect sandbox tester account.</li>
+      </ul>
+
+      <h2>Support Request Template</h2>
+      <p>When you contact support, include:</p>
+      <ul>
+        <li>App version and build number</li>
+        <li>Device model and iOS version</li>
+        <li>Whether the issue is on login, recording, analysis, or subscription purchase</li>
+        <li>Any on-screen error text or screenshots</li>
+      </ul>
+
+      <h2>Privacy and Terms</h2>
+      <ul>
+        <li><a href="./privacy.html">Privacy Policy</a></li>
+        <li><a href="./terms.html">Terms of Use</a></li>
+      </ul>
+    </div>
+  </main>
+</body>
+</html>

@@ -14,15 +14,14 @@ enum LegalPage {
         }
     }
 
-    /// TODO: Replace these with your actual hosted URLs (GitHub Pages, Notion, etc.)
     var url: URL? {
         switch self {
         case .privacy:
-            return URL(string: "https://starklabs2026-crypto.github.io/CryLens/privacy")
+            return AppConfig.privacyPolicyURL
         case .terms:
-            return URL(string: "https://starklabs2026-crypto.github.io/CryLens/terms")
+            return AppConfig.termsOfUseURL
         case .support:
-            return URL(string: "mailto:support@starklabs.app")
+            return AppConfig.supportURL
         }
     }
 }
@@ -34,14 +33,15 @@ struct LegalView: View {
 
     var body: some View {
         if page == .support {
-            // Support — open mailto
             List {
                 Section {
-                    Link(destination: URL(string: "mailto:support@starklabs.app")!) {
+                    Link(destination: URL(string: "mailto:\(AppConfig.supportEmail)")!) {
                         Label("Email Support", systemImage: "envelope.fill")
                     }
-                    Link(destination: URL(string: "https://starklabs2026-crypto.github.io/CryLens/support")!) {
+                    if let supportURL = AppConfig.supportURL {
+                        Link(destination: supportURL) {
                         Label("Help Centre", systemImage: "safari.fill")
+                        }
                     }
                 }
 

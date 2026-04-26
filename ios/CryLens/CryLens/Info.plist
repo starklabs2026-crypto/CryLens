@@ -26,8 +26,16 @@
 	<string>CryLens uses the camera for profile photos.</string>
 	<key>GoogleClientID</key>
 	<string>991898994577-c5in7t2q0k0j50c5gu4ppv2ktt4cgdrm.apps.googleusercontent.com</string>
+	<key>PrivacyPolicyURL</key>
+	<string>https://starklabs2026-crypto.github.io/CryLens/privacy.html</string>
 	<key>RevenueCatAPIKey</key>
 	<string>appl_EBnUyCfoTPNRtxvLhtvrJradlbv</string>
+	<key>SupportEmail</key>
+	<string>support@starklabs.app</string>
+	<key>SupportURL</key>
+	<string>https://starklabs2026-crypto.github.io/CryLens/support.html</string>
+	<key>TermsOfUseURL</key>
+	<string>https://starklabs2026-crypto.github.io/CryLens/terms.html</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

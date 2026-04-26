@@ -87,9 +87,14 @@ struct RegisterView: View {
                 }
 
                 // Apple Sign In
-                AppleSignInButton { token, appleNameFromApple in
-                    signInWithApple(token: token, name: name.isEmpty ? appleNameFromApple : name)
-                }
+                AppleSignInButton(
+                    onCredential: { token, appleNameFromApple in
+                        signInWithApple(token: token, name: name.isEmpty ? appleNameFromApple : name)
+                    },
+                    onError: { message in
+                        errorMessage = message
+                    }
+                )
 
                 // Google Sign In
                 Button(action: signInWithGoogle) {

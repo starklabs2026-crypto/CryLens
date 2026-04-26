@@ -100,6 +100,12 @@ export async function login(req: Request, res: Response): Promise<void> {
 // ─── Apple Sign In ────────────────────────────────────────────────────────────
 
 export async function appleSignIn(req: Request, res: Response): Promise<void> {
+  const appleClientId = process.env.APPLE_CLIENT_ID?.trim();
+  if (!appleClientId) {
+    res.status(503).json({ error: 'Apple Sign In unavailable', detail: 'APPLE_CLIENT_ID is not configured' });
+    return;
+  }
+
   const parsed = appleSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Validation failed', issues: parsed.error.flatten().fieldErrors });
@@ -114,7 +120,7 @@ export async function appleSignIn(req: Request, res: Response): Promise<void> {
   try {
     const { payload } = await jwtVerify(identityToken, APPLE_JWKS, {
       issuer: 'https://appleid.apple.com',
-      audience: process.env.APPLE_CLIENT_ID,
+      audience: appleClientId,
     });
 
     appleId = payload.sub as string;
@@ -153,6 +159,12 @@ export async function appleSignIn(req: Request, res: Response): Promise<void> {
 // ─── Google Sign In ───────────────────────────────────────────────────────────
 
 export async function googleSignIn(req: Request, res: Response): Promise<void> {
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  if (!googleClientId) {
+    res.status(503).json({ error: 'Google Sign In unavailable', detail: 'GOOGLE_CLIENT_ID is not configured' });
+    return;
+  }
+
   const parsed = googleSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Validation failed', issues: parsed.error.flatten().fieldErrors });
@@ -168,7 +180,7 @@ export async function googleSignIn(req: Request, res: Response): Promise<void> {
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: googleClientId,
     });
     const payload = ticket.getPayload();
     if (!payload?.sub) throw new Error('No sub in payload');

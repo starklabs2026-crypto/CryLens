@@ -46,7 +46,7 @@ struct SettingsView: View {
                 }
 
                 // MARK: Sign In Options
-                Section(header: Text("Linked Accounts")) {
+                Section(header: Text("Sign-In Methods")) {
                     Label("Apple ID", systemImage: "apple.logo")
                     Label("Google", systemImage: "g.circle.fill")
                         .foregroundStyle(.blue)

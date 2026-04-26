@@ -89,12 +89,14 @@ struct PaywallView: View {
 
                     // Legal links
                     HStack(spacing: 8) {
-                        Link("Privacy Policy",
-                             destination: URL(string: "https://starklabs2026-crypto.github.io/CryLens/privacy")!)
-                        Text("·").foregroundStyle(.secondary)
-                        Link("Terms of Use",
-                             destination: URL(string: "https://starklabs2026-crypto.github.io/CryLens/terms")!)
-                        Text("·").foregroundStyle(.secondary)
+                        if let privacyURL = AppConfig.privacyPolicyURL {
+                            Link("Privacy Policy", destination: privacyURL)
+                            Text("·").foregroundStyle(.secondary)
+                        }
+                        if let termsURL = AppConfig.termsOfUseURL {
+                            Link("Terms of Use", destination: termsURL)
+                            Text("·").foregroundStyle(.secondary)
+                        }
                         Link("EULA",
                              destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                     }

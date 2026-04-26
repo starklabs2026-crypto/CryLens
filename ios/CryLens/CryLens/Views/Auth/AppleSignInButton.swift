@@ -3,9 +3,10 @@ import AuthenticationServices
 
 struct AppleSignInButton: View {
     let onCredential: (String, String?) -> Void  // (identityToken, fullName)
+    let onError: (String) -> Void
 
     var body: some View {
-        SignInWithAppleButtonRep(onCredential: onCredential)
+        SignInWithAppleButtonRep(onCredential: onCredential, onError: onError)
             .frame(height: 52)
             .cornerRadius(14)
     }
@@ -15,9 +16,10 @@ struct AppleSignInButton: View {
 
 private struct SignInWithAppleButtonRep: UIViewRepresentable {
     let onCredential: (String, String?) -> Void
+    let onError: (String) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onCredential: onCredential)
+        Coordinator(onCredential: onCredential, onError: onError)
     }
 
     func makeUIView(context: Context) -> ASAuthorizationAppleIDButton {
@@ -35,9 +37,14 @@ private struct SignInWithAppleButtonRep: UIViewRepresentable {
                               ASAuthorizationControllerDelegate,
                               ASAuthorizationControllerPresentationContextProviding {
         let onCredential: (String, String?) -> Void
+        let onError: (String) -> Void
 
-        init(onCredential: @escaping (String, String?) -> Void) {
+        init(
+            onCredential: @escaping (String, String?) -> Void,
+            onError: @escaping (String) -> Void
+        ) {
             self.onCredential = onCredential
+            self.onError = onError
         }
 
         @objc func handleTap() {
@@ -69,7 +76,7 @@ private struct SignInWithAppleButtonRep: UIViewRepresentable {
 
         func authorizationController(controller: ASAuthorizationController,
                                      didCompleteWithError error: Error) {
-            // User cancelled or error — no action needed
+            onError(error.localizedDescription)
         }
 
         func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {

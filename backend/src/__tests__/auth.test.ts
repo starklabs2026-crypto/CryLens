@@ -5,15 +5,24 @@ import { prisma } from '../lib/prisma';
 const TEST_EMAIL = `test-auth-${Date.now()}@crylens.test`;
 const TEST_PASSWORD = 'password123';
 const TEST_NAME = 'Test User';
+const describeIfDatabase = process.env.DATABASE_URL ? describe : describe.skip;
 
 let authToken: string;
 
 afterAll(async () => {
+  if (!guardDatabase()) { return; }
   await prisma.user.deleteMany({ where: { email: { endsWith: '@crylens.test' } } });
   await prisma.$disconnect();
 });
 
-describe('POST /auth/register', () => {
+function guardDatabase() {
+  if (!process.env.DATABASE_URL) {
+    return false;
+  }
+  return true;
+}
+
+describeIfDatabase('POST /auth/register', () => {
   it('registers a new user and returns a token', async () => {
     const res = await request(app).post('/auth/register').send({
       email: TEST_EMAIL,
@@ -60,7 +69,7 @@ describe('POST /auth/register', () => {
   });
 });
 
-describe('POST /auth/login', () => {
+describeIfDatabase('POST /auth/login', () => {
   it('logs in with valid credentials', async () => {
     const res = await request(app).post('/auth/login').send({
       email: TEST_EMAIL,
@@ -98,7 +107,7 @@ describe('POST /auth/login', () => {
   });
 });
 
-describe('GET /auth/me', () => {
+describeIfDatabase('GET /auth/me', () => {
   it('returns the authenticated user', async () => {
     const res = await request(app)
       .get('/auth/me')

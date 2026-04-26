@@ -70,9 +70,14 @@ struct LoginView: View {
                     }
 
                     // Apple Sign In
-                    AppleSignInButton { token, name in
-                        signInWithApple(token: token, name: name)
-                    }
+                    AppleSignInButton(
+                        onCredential: { token, name in
+                            signInWithApple(token: token, name: name)
+                        },
+                        onError: { message in
+                            errorMessage = message
+                        }
+                    )
 
                     // Google Sign In
                     Button(action: signInWithGoogle) {

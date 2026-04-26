@@ -7,30 +7,7 @@ final class CryAnalysisService: ObservableObject {
     @Published var confidence: Double?
     @Published var error: String?
 
-    // MARK: - Simulated analysis (recorded audio — v1)
-    // TODO: Replace random selection with Core ML model inference in v2
-
     func analyse(audioURL: URL, babyId: String) async {
-        await setState(analysing: true)
-        do {
-            try await Task.sleep(nanoseconds: 1_500_000_000)
-            let label = CryLabel.allCases.randomElement()!
-            let conf  = Double.random(in: 0.75...0.99)
-            let dur   = await audioDuration(url: audioURL)
-            _ = try await APIService.shared.logAnalysis(
-                NewCryAnalysis(babyId: babyId, label: label.rawValue,
-                               confidence: conf, durationSec: dur, notes: nil))
-            await MainActor.run {
-                self.result = label; self.confidence = conf; self.isAnalysing = false
-            }
-        } catch {
-            await MainActor.run { self.error = error.localizedDescription; self.isAnalysing = false }
-        }
-    }
-
-    // MARK: - AI analysis (imported audio — uploads to Supabase then calls Gemini)
-
-    func analyseWithAI(audioURL: URL, babyId: String) async {
         await setState(analysing: true)
         do {
             let fileName = audioURL.lastPathComponent
@@ -62,6 +39,10 @@ final class CryAnalysisService: ObservableObject {
         } catch {
             await MainActor.run { self.error = error.localizedDescription; self.isAnalysing = false }
         }
+    }
+
+    func analyseWithAI(audioURL: URL, babyId: String) async {
+        await analyse(audioURL: audioURL, babyId: babyId)
     }
 
     func reset() { result = nil; confidence = nil; error = nil; isAnalysing = false }

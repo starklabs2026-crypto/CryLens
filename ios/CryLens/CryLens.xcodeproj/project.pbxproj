@@ -30,9 +30,21 @@
 		ABF00019000000000000AABB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00019000000000000AABB /* SettingsView.swift */; };
 		ABF0001A000000000000AABB /* LegalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001A000000000000AABB /* LegalView.swift */; };
 		ABF0001B000000000000AABB /* AppleSignInButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001B000000000000AABB /* AppleSignInButton.swift */; };
-		RCBF0000000000000000001A /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = RCPRD000000000000000001A /* RevenueCat */; };
+		DA565F3E2F9355E5005FC287 /* CryLens.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DA565F3D2F9355E5005FC287 /* CryLens.storekit */; };
+		DA565F3F2F9355E5005FC287 /* CryLens.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DA565F3D2F9355E5005FC287 /* CryLens.storekit */; };
 		GSBF0000000000000000001A /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = GSPRD000000000000000001A /* GoogleSignIn */; };
+		RCBF0000000000000000001A /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = RCPRD000000000000000001A /* RevenueCat */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DAB2D62E2FEA000100123456 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = APROJ0001000000000000AABB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ATG00001000000000000AABB;
+			remoteInfo = CryLens;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		AAF00001000000000000AABB /* CryLensApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryLensApp.swift; sourceTree = "<group>"; };
@@ -62,6 +74,7 @@
 		AAF00019000000000000AABB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AAF0001A000000000000AABB /* LegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalView.swift; sourceTree = "<group>"; };
 		AAF0001B000000000000AABB /* AppleSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInButton.swift; sourceTree = "<group>"; };
+		DA565F3D2F9355E5005FC287 /* CryLens.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = CryLens.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +100,7 @@
 		AGP00001000000000000AABB = {
 			isa = PBXGroup;
 			children = (
+				DA565F3D2F9355E5005FC287 /* CryLens.storekit */,
 				AGP00002000000000000AABB /* CryLens */,
 				AGP0000E000000000000AABB /* CryLensTests */,
 				AGP0000D000000000000AABB /* Products */,
@@ -195,23 +209,6 @@
 			path = Profile;
 			sourceTree = "<group>";
 		};
-		AGP0000F000000000000AABB /* Subscription */ = {
-			isa = PBXGroup;
-			children = (
-				AAF00018000000000000AABB /* PaywallView.swift */,
-			);
-			path = Subscription;
-			sourceTree = "<group>";
-		};
-		AGP00010000000000000AABB /* Settings */ = {
-			isa = PBXGroup;
-			children = (
-				AAF00019000000000000AABB /* SettingsView.swift */,
-				AAF0001A000000000000AABB /* LegalView.swift */,
-			);
-			path = Settings;
-			sourceTree = "<group>";
-		};
 		AGP0000C000000000000AABB /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
@@ -235,6 +232,23 @@
 				AAF00014000000000000AABB /* CryLensTests.swift */,
 			);
 			path = CryLensTests;
+			sourceTree = "<group>";
+		};
+		AGP0000F000000000000AABB /* Subscription */ = {
+			isa = PBXGroup;
+			children = (
+				AAF00018000000000000AABB /* PaywallView.swift */,
+			);
+			path = Subscription;
+			sourceTree = "<group>";
+		};
+		AGP00010000000000000AABB /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				AAF00019000000000000AABB /* SettingsView.swift */,
+				AAF0001A000000000000AABB /* LegalView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -272,6 +286,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				DAB2D62F2FEA000100123456 /* PBXTargetDependency */,
 			);
 			name = CryLensTests;
 			productName = CryLensTests;
@@ -306,11 +321,11 @@
 				Base,
 			);
 			mainGroup = AGP00001000000000000AABB;
-			productRefGroup = AGP0000D000000000000AABB /* Products */;
 			packageReferences = (
 				RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */,
 				GSPKG000000000000000001A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
+			productRefGroup = AGP0000D000000000000AABB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -325,6 +340,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DA565F3E2F9355E5005FC287 /* CryLens.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -332,10 +348,19 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DA565F3F2F9355E5005FC287 /* CryLens.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DAB2D62F2FEA000100123456 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ATG00001000000000000AABB /* CryLens */;
+			targetProxy = DAB2D62E2FEA000100123456 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		ABP00001000000000000AABB /* Sources */ = {
@@ -385,6 +410,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = CryLens/CryLens.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
@@ -402,6 +428,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.starklabs.crylens;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -415,6 +442,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = CryLens/CryLens.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
@@ -432,6 +460,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.starklabs.crylens;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -622,14 +651,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.0.0;
-			};
-		};
 		GSPKG000000000000000001A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
@@ -638,18 +659,26 @@
 				minimumVersion = 7.0.0;
 			};
 		};
+		RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		RCPRD000000000000000001A /* RevenueCat */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */;
-			productName = RevenueCat;
-		};
 		GSPRD000000000000000001A /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = GSPKG000000000000000001A /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
+		};
+		RCPRD000000000000000001A /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = RCPKG000000000000000001A /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -33,5 +33,6 @@ COPY prisma ./prisma/
 
 EXPOSE 3000
 
-# Migrations are applied via Supabase MCP before each deploy (Railway can't reach port 5432 directly)
+# Start the API directly in Railway. Run Prisma migrations manually from a network
+# location that can reach the database's direct host when schema changes are needed.
 CMD ["node", "dist/server.js"]
