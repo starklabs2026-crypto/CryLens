@@ -80,7 +80,7 @@ export async function createAnalysis(req: AuthRequest, res: Response): Promise<v
     await tx.$executeRaw`
       UPDATE "User"
       SET "freeAnalysesUsed" = COALESCE("freeAnalysesUsed", 0) + 1
-      WHERE "id" = ${req.userId}
+      WHERE "id" = CAST(${req.userId} AS UUID)
     `;
 
     return created;
@@ -93,7 +93,7 @@ export async function getUsage(req: AuthRequest, res: Response): Promise<void> {
   const rows = await prisma.$queryRaw<Array<{ freeAnalysesUsed: number | null }>>`
     SELECT COALESCE("freeAnalysesUsed", 0) AS "freeAnalysesUsed"
     FROM "User"
-    WHERE "id" = ${req.userId}
+    WHERE "id" = CAST(${req.userId} AS UUID)
     LIMIT 1
   `;
 
@@ -252,7 +252,7 @@ export async function analyzeAudio(req: AuthRequest, res: Response): Promise<voi
     await tx.$executeRaw`
       UPDATE "User"
       SET "freeAnalysesUsed" = COALESCE("freeAnalysesUsed", 0) + 1
-      WHERE "id" = ${req.userId}
+      WHERE "id" = CAST(${req.userId} AS UUID)
     `;
 
     return created;
