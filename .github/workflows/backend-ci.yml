@@ -62,6 +62,12 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Enable Postgres UUID extension
+        run: |
+          npx prisma db execute --url "$DIRECT_URL" --stdin <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          SQL
+
       - name: Run database migrations
         run: npx prisma migrate deploy
 
