@@ -34,14 +34,16 @@ final class AudioCaptureService: ObservableObject {
 
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("m4a")
+            .appendingPathExtension("wav")
         outputURL = tempURL
 
         let settings: [String: Any] = [
-            AVFormatIDKey:             Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey:           44100,
-            AVNumberOfChannelsKey:     1,
-            AVEncoderAudioQualityKey:  AVAudioQuality.high.rawValue
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
+            AVSampleRateKey: 24000,
+            AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsFloatKey: false
         ]
 
         do {

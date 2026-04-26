@@ -10,6 +10,7 @@ export interface CryAnalysisResult {
 }
 
 const VALID_LABELS: CryLabelStr[] = ['hungry', 'tired', 'pain', 'burping', 'discomfort'];
+const DIRECT_AUDIO_FORMATS = new Set(['wav', 'mp3']);
 type CueScores = Record<CryLabelStr, number>;
 
 const LOW_SIGNAL_PATTERNS = [
@@ -78,7 +79,7 @@ const HEURISTIC_CUES: Array<{ label: CryLabelStr; weight: number; pattern: RegEx
   { label: 'discomfort', weight: 1.0, pattern: /\bpersistent\b/i },
 ];
 
-const CLASSIFY_PROMPT = `You are an expert baby cry analyser with 20 years of experience.
+const TRANSCRIPT_CLASSIFY_PROMPT = `You are an expert baby cry analyser with 20 years of experience.
 
 You will be given a Whisper transcription of a baby cry recording. Whisper captures acoustic sounds, not just speech - it may output things like "[baby crying]", "[wailing]", "[whimpering]", "[screaming]", "[fussing]", "[hiccuping]", or describe the rhythm and intensity of the cry.
 
@@ -92,6 +93,26 @@ Cry type acoustic signatures:
 - pain: sudden, sharp, high-pitched screaming, intense and sustained, little pause between cries
 - burping: short bursts of crying with hiccup-like pauses, may sound trapped or uncomfortable
 - discomfort: continuous, droning, medium pitch, nasal quality - not urgent but persistent
+
+Return ONLY a JSON object - no markdown, no explanation outside the JSON:
+{
+  "label": "<hungry|tired|pain|burping|discomfort>",
+  "confidence": <0.0 to 1.0>,
+  "notes": "<1-2 sentences: what acoustic cues led to this classification and what the parent should do>"
+}`;
+
+const DIRECT_AUDIO_CLASSIFY_PROMPT = `You are an expert baby cry analyser with 20 years of experience.
+
+You will be given a raw infant cry recording as audio input. Do not rely on speech words. Classify the most likely reason for the cry using acoustic features such as onset speed, pitch, intensity, cadence, pause length, escalation or fading, and hiccuping / grunting / trapped-gas-like patterns.
+
+Discomfort is a fallback bucket, not the default answer. Only choose discomfort when the cry lacks stronger cues for hungry, tired, pain, or burping. If the signal is ambiguous, lower the confidence instead of defaulting to discomfort.
+
+Cry type acoustic signatures:
+- hungry: rhythmic, repetitive, builds gradually, fairly regular pauses, medium pitch
+- tired: whiny, intermittent, lower energy, softer and fading, may sound fussier than urgent
+- pain: sudden, sharp, high-pitched, intense and sustained, little pause between cries
+- burping: short bursts with hiccup-like pauses, grunting, trapped-gas or post-feed discomfort feel
+- discomfort: continuous, droning, medium pitch, nasal quality, persistent but not urgent
 
 Return ONLY a JSON object - no markdown, no explanation outside the JSON:
 {
@@ -207,6 +228,44 @@ export function reconcileCryClassification(
   };
 }
 
+export function shouldUseDirectAudioClassification(ext: string): boolean {
+  return DIRECT_AUDIO_FORMATS.has(ext.trim().toLowerCase());
+}
+
+function parseClassificationPayload(raw: string): { label: string; confidence: number; notes: string } {
+  const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    throw new Error(`OpenAI returned non-JSON: ${raw.slice(0, 200)}`);
+  }
+}
+
+function getAssistantText(
+  content:
+    | string
+    | Array<{
+        type?: string;
+        text?: string;
+        refusal?: string;
+      }>
+    | null
+    | undefined,
+): string {
+  if (typeof content === 'string') return content.trim();
+  if (!Array.isArray(content)) return '';
+
+  return content
+    .map((part) => {
+      if (typeof part?.text === 'string') return part.text;
+      if (typeof part?.refusal === 'string') return part.refusal;
+      return '';
+    })
+    .join('\n')
+    .trim();
+}
+
 async function transcribeWithWhisper(audioBuffer: Buffer, ext: string): Promise<string> {
   const openai = getOpenAIClient();
   const mimeMap: Record<string, string> = {
@@ -220,38 +279,93 @@ async function transcribeWithWhisper(audioBuffer: Buffer, ext: string): Promise<
   };
   const mime = mimeMap[ext] ?? 'audio/wav';
   const filename = `cry.${ext || 'wav'}`;
+  const models = [
+    ...new Set(
+      [process.env.OPENAI_TRANSCRIBE_MODEL?.trim(), 'gpt-4o-mini-transcribe', 'whisper-1'].filter(
+        (value): value is string => Boolean(value),
+      ),
+    ),
+  ];
 
-  try {
-    const file = new File([audioBuffer], filename, { type: mime });
-    const transcription = await openai.audio.transcriptions.create({
-      model: 'whisper-1',
-      file,
-      response_format: 'verbose_json',
-      prompt: 'This is an infant cry recording. If there is no speech, return a short literal sound description using cue words like [rhythmic], [whimpering], [hiccuping], [high-pitched screaming], [intermittent], [continuous], [nasal], [fading], or [escalating]. Avoid generic outputs like "baby crying" when more acoustic detail is present.',
-    });
+  for (const model of models) {
+    try {
+      const file = new File([audioBuffer], filename, { type: mime });
+      const transcription = await openai.audio.transcriptions.create({
+        model,
+        file,
+        response_format: 'verbose_json',
+        prompt: 'This is an infant cry recording. If there is no speech, return a short literal sound description using cue words like [rhythmic], [whimpering], [hiccuping], [high-pitched screaming], [intermittent], [continuous], [nasal], [fading], or [escalating]. Avoid generic outputs like "baby crying" when more acoustic detail is present.',
+      });
 
-    const verbose = transcription as unknown as {
-      text?: string;
-      segments?: Array<{ text?: string }>;
-    };
-    const segmentText = (verbose.segments ?? [])
-      .map((segment) => segment.text?.trim())
-      .filter((value): value is string => Boolean(value));
-    const text = [verbose.text?.trim(), ...segmentText]
-      .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
-      .join(' | ')
-      .trim();
+      const verbose = transcription as unknown as {
+        text?: string;
+        segments?: Array<{ text?: string }>;
+      };
+      const segmentText = (verbose.segments ?? [])
+        .map((segment) => segment.text?.trim())
+        .filter((value): value is string => Boolean(value));
+      const text = [verbose.text?.trim(), ...segmentText]
+        .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
+        .join(' | ')
+        .trim();
 
-    console.log(`[CryAnalyzer] Whisper transcript: "${text}"`);
-    return text || '[baby crying]';
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[CryAnalyzer] Whisper failed: ${msg}`);
-    return '[baby crying]';
+      console.log(`[CryAnalyzer] ${model} transcript: "${text}"`);
+      return text || '[baby crying]';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[CryAnalyzer] ${model} transcription failed: ${msg}`);
+    }
   }
+
+  return '[baby crying]';
 }
 
-async function classifyWithOpenAI(transcript: string, durationSec: number): Promise<CryAnalysisResult> {
+async function classifyAudioDirectly(audioBuffer: Buffer, format: 'wav' | 'mp3', durationSec: number): Promise<CryAnalysisResult> {
+  const openai = getOpenAIClient();
+  const completion = await openai.chat.completions.create({
+    model: process.env.OPENAI_AUDIO_MODEL?.trim() || 'gpt-audio',
+    messages: [
+      { role: 'system', content: DIRECT_AUDIO_CLASSIFY_PROMPT },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `This is a ${durationSec}-second infant cry recording. Listen to the raw audio and classify the dominant cause of the cry.`,
+          },
+          {
+            type: 'input_audio',
+            input_audio: {
+              data: audioBuffer.toString('base64'),
+              format,
+            },
+          },
+        ],
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 220,
+  });
+
+  const raw = getAssistantText(completion.choices[0]?.message?.content);
+  if (!raw) {
+    throw new Error('OpenAI returned an empty response for direct audio classification');
+  }
+
+  const parsed = parseClassificationPayload(raw);
+  const normalized = normalizeCryLabel(parsed.label);
+  if (!normalized) {
+    throw new Error(`Unknown label from OpenAI audio model: ${parsed.label}`);
+  }
+
+  return {
+    label: normalized,
+    confidence: Math.min(1, Math.max(0, Number(parsed.confidence) || 0.7)),
+    notes: String(parsed.notes ?? '').slice(0, 500).trim() || 'Classified from direct cry audio features.',
+  };
+}
+
+async function classifyTranscriptWithOpenAI(transcript: string, durationSec: number): Promise<CryAnalysisResult> {
   const openai = getOpenAIClient();
   const heuristicScores = scoreCryTranscript(transcript);
   const userMessage = `Whisper transcription of a ${durationSec}-second baby cry recording: "${transcript}"
@@ -268,22 +382,15 @@ Classify why this baby is crying.`;
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
-      { role: 'system', content: CLASSIFY_PROMPT },
+      { role: 'system', content: TRANSCRIPT_CLASSIFY_PROMPT },
       { role: 'user', content: userMessage },
     ],
     temperature: 0.3,
     max_tokens: 200,
   });
 
-  const raw = completion.choices[0]?.message?.content?.trim() ?? '';
-  const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-
-  let parsed: { label: string; confidence: number; notes: string };
-  try {
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    throw new Error(`OpenAI returned non-JSON: ${raw.slice(0, 200)}`);
-  }
+  const raw = getAssistantText(completion.choices[0]?.message?.content) ?? '';
+  const parsed = parseClassificationPayload(raw);
 
   const normalized = normalizeCryLabel(parsed.label);
   if (!normalized && !pickHeuristicLabel(heuristicScores)) {
@@ -314,7 +421,16 @@ export async function analyzeCryAudio(audioStoragePath: string, durationSec?: nu
   const arrayBuffer = await response.arrayBuffer();
   const audioBuffer = Buffer.from(arrayBuffer);
   const ext = audioStoragePath.split('.').pop()?.toLowerCase() ?? '';
-  const transcript = await transcribeWithWhisper(audioBuffer, ext);
+  if (shouldUseDirectAudioClassification(ext)) {
+    try {
+      console.log(`[CryAnalyzer] Using direct audio classification for .${ext} input`);
+      return await classifyAudioDirectly(audioBuffer, ext as 'wav' | 'mp3', durationSec ?? 5);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[CryAnalyzer] Direct audio classification failed, falling back to transcription: ${msg}`);
+    }
+  }
 
-  return classifyWithOpenAI(transcript, durationSec ?? 5);
+  const transcript = await transcribeWithWhisper(audioBuffer, ext);
+  return classifyTranscriptWithOpenAI(transcript, durationSec ?? 5);
 }

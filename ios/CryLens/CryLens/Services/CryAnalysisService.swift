@@ -71,7 +71,7 @@ final class CryAnalysisService: ObservableObject {
         case "wav": return "audio/wav"
         case "aac": return "audio/aac"
         case "mp4": return "audio/mp4"
-        default:    return "audio/m4a"
+        default:    return "audio/wav"
         }
     }
 }

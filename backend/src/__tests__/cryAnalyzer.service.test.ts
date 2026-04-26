@@ -4,6 +4,7 @@ import {
   pickHeuristicLabel,
   reconcileCryClassification,
   scoreCryTranscript,
+  shouldUseDirectAudioClassification,
 } from '../services/cryAnalyzer.service';
 
 describe('cryAnalyzer.service heuristics', () => {
@@ -24,6 +25,13 @@ describe('cryAnalyzer.service heuristics', () => {
   it('picks burping when hiccup-like cues are strongest', () => {
     const scores = scoreCryTranscript('[hiccuping] short bursts, trapped gas, grunting between cries');
     expect(pickHeuristicLabel(scores)).toBe('burping');
+  });
+
+  it('uses the direct audio classifier only for wav and mp3 inputs', () => {
+    expect(shouldUseDirectAudioClassification('wav')).toBe(true);
+    expect(shouldUseDirectAudioClassification('mp3')).toBe(true);
+    expect(shouldUseDirectAudioClassification('m4a')).toBe(false);
+    expect(shouldUseDirectAudioClassification('aac')).toBe(false);
   });
 
   it('overrides fallback discomfort when transcript has stronger pain cues', () => {
