@@ -4,6 +4,7 @@ enum APIError: LocalizedError {
     case invalidURL
     case noData
     case unauthorized
+    case noBabyCryDetected(String)
     case serverError(String)
     case decodingError
 
@@ -12,6 +13,8 @@ enum APIError: LocalizedError {
         case .invalidURL:            return "The request URL was invalid."
         case .noData:                return "No data was returned from the server."
         case .unauthorized:          return "You are not authorised. Please sign in again."
+        case .noBabyCryDetected(let msg):
+            return msg.isEmpty ? "No baby cry detected. Please record or import a clear baby cry." : msg
         case .serverError(let msg):  return "Server error: \(msg)"
         case .decodingError:         return "Failed to decode the server response."
         }
@@ -58,6 +61,9 @@ final class APIService {
                 let message = [payload.error, payload.detail, payload.message]
                     .compactMap { $0 }
                     .joined(separator: ": ")
+                if http.statusCode == 422, payload.error == "No baby cry detected" {
+                    throw APIError.noBabyCryDetected(payload.detail ?? "No baby cry detected. Please record or import a clear baby cry.")
+                }
                 throw APIError.serverError(message.isEmpty ? "Unknown" : message)
             }
 

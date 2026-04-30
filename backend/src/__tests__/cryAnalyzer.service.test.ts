@@ -1,5 +1,7 @@
 import {
+  assertBabyCryClassification,
   isLowSignalTranscript,
+  NonBabyCryAudioError,
   normalizeCryLabel,
   pickHeuristicLabel,
   reconcileCryClassification,
@@ -57,5 +59,16 @@ describe('cryAnalyzer.service heuristics', () => {
 
     expect(result.label).toBe('discomfort');
     expect(result.notes.length).toBeGreaterThan(0);
+  });
+
+  it('rejects model payloads that are not baby cries', () => {
+    expect(() =>
+      assertBabyCryClassification({
+        is_baby_cry: false,
+        label: null,
+        confidence: 0,
+        rejection_reason: 'The audio contains adult speech, not a baby cry.',
+      }),
+    ).toThrow(NonBabyCryAudioError);
   });
 });

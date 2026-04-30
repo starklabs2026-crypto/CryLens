@@ -4,7 +4,7 @@ import { CryLabel } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getSupabase, isSupabaseConfigured, AUDIO_BUCKET } from '../lib/supabase';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { analyzeCryAudio } from '../services/cryAnalyzer.service';
+import { analyzeCryAudio, NonBabyCryAudioError } from '../services/cryAnalyzer.service';
 
 const CRY_LABELS = ['hungry', 'tired', 'pain', 'burping', 'discomfort'] as const;
 const FREE_ANALYSIS_LIMIT = 5;
@@ -232,6 +232,14 @@ export async function analyzeAudio(req: AuthRequest, res: Response): Promise<voi
   try {
     result = await analyzeCryAudio(audioPath, durationSec);
   } catch (err: unknown) {
+    if (err instanceof NonBabyCryAudioError) {
+      res.status(422).json({
+        error: 'No baby cry detected',
+        detail: err.message,
+      });
+      return;
+    }
+
     const message = err instanceof Error ? err.message : 'Analysis failed';
     res.status(502).json({ error: 'AI analysis failed', detail: message });
     return;

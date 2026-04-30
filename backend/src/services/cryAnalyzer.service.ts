@@ -9,9 +9,25 @@ export interface CryAnalysisResult {
   notes: string;
 }
 
+export class NonBabyCryAudioError extends Error {
+  constructor(message = 'The uploaded audio does not appear to contain a baby crying.') {
+    super(message);
+    this.name = 'NonBabyCryAudioError';
+  }
+}
+
 const VALID_LABELS: CryLabelStr[] = ['hungry', 'tired', 'pain', 'burping', 'discomfort'];
 const DIRECT_AUDIO_FORMATS = new Set(['wav', 'mp3']);
 type CueScores = Record<CryLabelStr, number>;
+export type ClassificationPayload = {
+  is_baby_cry?: boolean;
+  isBabyCry?: boolean;
+  label?: string | null;
+  confidence?: number;
+  notes?: string;
+  rejection_reason?: string;
+  rejectionReason?: string;
+};
 
 const LOW_SIGNAL_PATTERNS = [
   /^\[?(baby )?cry(?:ing)?\]?$/i,
@@ -81,7 +97,11 @@ const HEURISTIC_CUES: Array<{ label: CryLabelStr; weight: number; pattern: RegEx
 
 const TRANSCRIPT_CLASSIFY_PROMPT = `You are an expert baby cry analyser with 20 years of experience.
 
-You will be given a Whisper transcription of a baby cry recording. Whisper captures acoustic sounds, not just speech - it may output things like "[baby crying]", "[wailing]", "[whimpering]", "[screaming]", "[fussing]", "[hiccuping]", or describe the rhythm and intensity of the cry.
+You will be given a Whisper transcription of an uploaded audio recording. Whisper captures acoustic sounds, not just speech - it may output things like "[baby crying]", "[wailing]", "[whimpering]", "[screaming]", "[fussing]", "[hiccuping]", or describe the rhythm and intensity of the cry.
+
+First decide whether the recording actually contains an infant/baby cry. Reject adult speech, older-child speech without crying, music, TV/audio playback, pets, mechanical sounds, silence, white noise, and general environmental noise.
+
+If the recording does not clearly contain a baby cry, set "is_baby_cry" to false, "label" to null, confidence to 0, and explain briefly in "rejection_reason". Do not force random audio into a cry label.
 
 Using the acoustic description and your knowledge of infant cry patterns, classify why the baby is crying.
 
@@ -96,14 +116,20 @@ Cry type acoustic signatures:
 
 Return ONLY a JSON object - no markdown, no explanation outside the JSON:
 {
+  "is_baby_cry": <true|false>,
   "label": "<hungry|tired|pain|burping|discomfort>",
   "confidence": <0.0 to 1.0>,
-  "notes": "<1-2 sentences: what acoustic cues led to this classification and what the parent should do>"
+  "notes": "<1-2 sentences: what acoustic cues led to this classification and what the parent should do>",
+  "rejection_reason": "<only when is_baby_cry is false>"
 }`;
 
 const DIRECT_AUDIO_CLASSIFY_PROMPT = `You are an expert baby cry analyser with 20 years of experience.
 
-You will be given a raw infant cry recording as audio input. Do not rely on speech words. Classify the most likely reason for the cry using acoustic features such as onset speed, pitch, intensity, cadence, pause length, escalation or fading, and hiccuping / grunting / trapped-gas-like patterns.
+You will be given a raw uploaded audio recording. Do not rely on speech words. First decide whether the recording actually contains an infant/baby cry. Reject adult speech, older-child speech without crying, music, TV/audio playback, pets, mechanical sounds, silence, white noise, and general environmental noise.
+
+If the recording does not clearly contain a baby cry, set "is_baby_cry" to false, "label" to null, confidence to 0, and explain briefly in "rejection_reason". Do not force random audio into a cry label.
+
+If the recording does contain a baby cry, classify the most likely reason for the cry using acoustic features such as onset speed, pitch, intensity, cadence, pause length, escalation or fading, and hiccuping / grunting / trapped-gas-like patterns.
 
 Discomfort is a fallback bucket, not the default answer. Only choose discomfort when the cry lacks stronger cues for hungry, tired, pain, or burping. If the signal is ambiguous, lower the confidence instead of defaulting to discomfort.
 
@@ -116,9 +142,11 @@ Cry type acoustic signatures:
 
 Return ONLY a JSON object - no markdown, no explanation outside the JSON:
 {
+  "is_baby_cry": <true|false>,
   "label": "<hungry|tired|pain|burping|discomfort>",
   "confidence": <0.0 to 1.0>,
-  "notes": "<1-2 sentences: what acoustic cues led to this classification and what the parent should do>"
+  "notes": "<1-2 sentences: what acoustic cues led to this classification and what the parent should do>",
+  "rejection_reason": "<only when is_baby_cry is false>"
 }`;
 
 function getOpenAIClient(): OpenAI {
@@ -232,7 +260,7 @@ export function shouldUseDirectAudioClassification(ext: string): boolean {
   return DIRECT_AUDIO_FORMATS.has(ext.trim().toLowerCase());
 }
 
-function parseClassificationPayload(raw: string): { label: string; confidence: number; notes: string } {
+function parseClassificationPayload(raw: string): ClassificationPayload {
   const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
   try {
@@ -240,6 +268,21 @@ function parseClassificationPayload(raw: string): { label: string; confidence: n
   } catch {
     throw new Error(`OpenAI returned non-JSON: ${raw.slice(0, 200)}`);
   }
+}
+
+function babyCryDecision(payload: ClassificationPayload): boolean | null {
+  if (typeof payload.is_baby_cry === 'boolean') return payload.is_baby_cry;
+  if (typeof payload.isBabyCry === 'boolean') return payload.isBabyCry;
+  return null;
+}
+
+export function assertBabyCryClassification(payload: ClassificationPayload): void {
+  if (babyCryDecision(payload) !== false) return;
+
+  const reason = String(payload.rejection_reason ?? payload.rejectionReason ?? payload.notes ?? '').trim();
+  throw new NonBabyCryAudioError(
+    reason || 'The uploaded audio does not appear to contain a baby crying. Please record or import a clear baby cry.',
+  );
 }
 
 function getAssistantText(
@@ -294,7 +337,7 @@ async function transcribeWithWhisper(audioBuffer: Buffer, ext: string): Promise<
         model,
         file,
         response_format: 'verbose_json',
-        prompt: 'This is an infant cry recording. If there is no speech, return a short literal sound description using cue words like [rhythmic], [whimpering], [hiccuping], [high-pitched screaming], [intermittent], [continuous], [nasal], [fading], or [escalating]. Avoid generic outputs like "baby crying" when more acoustic detail is present.',
+        prompt: 'Describe the uploaded audio literally. If it contains a baby crying, use cue words like [baby crying], [rhythmic], [whimpering], [hiccuping], [high-pitched screaming], [intermittent], [continuous], [nasal], [fading], or [escalating]. If it is speech, music, silence, pets, TV, or other non-baby-cry audio, describe that instead. Avoid generic outputs when more acoustic detail is present.',
       });
 
       const verbose = transcription as unknown as {
@@ -353,6 +396,8 @@ async function classifyAudioDirectly(audioBuffer: Buffer, format: 'wav' | 'mp3',
   }
 
   const parsed = parseClassificationPayload(raw);
+  assertBabyCryClassification(parsed);
+
   const normalized = normalizeCryLabel(parsed.label);
   if (!normalized) {
     throw new Error(`Unknown label from OpenAI audio model: ${parsed.label}`);
@@ -391,6 +436,7 @@ Classify why this baby is crying.`;
 
   const raw = getAssistantText(completion.choices[0]?.message?.content) ?? '';
   const parsed = parseClassificationPayload(raw);
+  assertBabyCryClassification(parsed);
 
   const normalized = normalizeCryLabel(parsed.label);
   if (!normalized && !pickHeuristicLabel(heuristicScores)) {
