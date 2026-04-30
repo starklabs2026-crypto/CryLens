@@ -18,10 +18,7 @@ struct LoginView: View {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 20)
 
-                    Image(systemName: "waveform.circle.fill")
-                        .resizable().scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .foregroundStyle(coral)
+                    CryLensLogo(size: 84)
 
                     VStack(spacing: 4) {
                         Text("CryLens").font(.largeTitle.bold())

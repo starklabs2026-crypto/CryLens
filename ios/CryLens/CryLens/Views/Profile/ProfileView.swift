@@ -15,7 +15,9 @@ struct ProfileView: View {
     @State private var editName = ""
     @State private var editDOB = Date()
     @State private var isSavingEdit = false
+    @State private var isDeletingEdit = false
     @State private var editError: String?
+    @State private var showDeleteBabyConfirm = false
 
     private let coral = Color(hex: "FF6B6B")
 
@@ -131,19 +133,47 @@ struct ProfileView: View {
                     DatePicker("Date of Birth", selection: $editDOB,
                                in: ...Date(), displayedComponents: .date)
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteBabyConfirm = true
+                    } label: {
+                        if isDeletingEdit {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                Text("Deleting Baby…")
+                            }
+                        } else {
+                            Label("Delete Baby", systemImage: "trash")
+                        }
+                    }
+                    .disabled(isSavingEdit || isDeletingEdit)
+                }
+
                 if let editError {
                     Text(editError).foregroundStyle(.red).font(.caption)
                 }
             }
             .navigationTitle("Edit Baby")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog("Delete Baby",
+                                isPresented: $showDeleteBabyConfirm,
+                                titleVisibility: .visible) {
+                Button("Delete Baby", role: .destructive) {
+                    Task { await deleteEditingBaby() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This deletes the baby profile and all related cry history. This cannot be undone.")
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { editingBaby = nil; editError = nil }
+                        .disabled(isSavingEdit || isDeletingEdit)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await saveEdit() } }
-                        .disabled(editName.isEmpty || isSavingEdit)
+                        .disabled(editName.isEmpty || isSavingEdit || isDeletingEdit)
                 }
             }
         }
@@ -152,6 +182,13 @@ struct ProfileView: View {
     // MARK: - Helpers
 
     private func loadBabies() async {
+        #if DEBUG
+        if DebugLaunchOptions.isScreenshotMode {
+            babies = DebugLaunchOptions.screenshotBabies
+            return
+        }
+        #endif
+
         do { babies = try await APIService.shared.getBabies() } catch {}
     }
 
@@ -172,7 +209,7 @@ struct ProfileView: View {
 
     private func startEditing(_ baby: Baby) {
         editName = baby.name
-        editDOB = ISO8601DateFormatter().date(from: baby.dob) ?? Date()
+        editDOB = AppDate.parse(baby.dob) ?? Date()
         editError = nil
         editingBaby = baby
     }
@@ -195,6 +232,26 @@ struct ProfileView: View {
         }
     }
 
+    private func deleteEditingBaby() async {
+        guard let baby = editingBaby else { return }
+        isDeletingEdit = true
+        editError = nil
+
+        do {
+            try await APIService.shared.deleteBaby(id: baby.id)
+            await MainActor.run {
+                babies.removeAll { $0.id == baby.id }
+                isDeletingEdit = false
+                editingBaby = nil
+            }
+        } catch {
+            await MainActor.run {
+                editError = error.localizedDescription
+                isDeletingEdit = false
+            }
+        }
+    }
+
     private func deleteBabies(at offsets: IndexSet) {
         let toDelete = offsets.map { babies[$0] }
         babies.remove(atOffsets: offsets)
@@ -206,12 +263,6 @@ struct ProfileView: View {
     }
 
     private func ageString(from dob: String) -> String {
-        let iso = ISO8601DateFormatter()
-        guard let date = iso.date(from: dob) else { return dob }
-        let comps = Calendar.current.dateComponents([.year, .month, .day], from: date, to: Date())
-        if let y = comps.year, y > 0 { return "\(y) yr\(y == 1 ? "" : "s") old" }
-        if let m = comps.month, m > 0 { return "\(m) mo old" }
-        if let d = comps.day { return "\(d) day\(d == 1 ? "" : "s") old" }
-        return ""
+        AppDate.babyAgeString(from: dob)
     }
 }

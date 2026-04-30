@@ -30,6 +30,9 @@
 		ABF00019000000000000AABB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF00019000000000000AABB /* SettingsView.swift */; };
 		ABF0001A000000000000AABB /* LegalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001A000000000000AABB /* LegalView.swift */; };
 		ABF0001B000000000000AABB /* AppleSignInButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001B000000000000AABB /* AppleSignInButton.swift */; };
+		ABF0001C000000000000AABB /* CryLensLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001C000000000000AABB /* CryLensLogo.swift */; };
+		ABF0001D000000000000AABB /* DebugLaunchOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF0001D000000000000AABB /* DebugLaunchOptions.swift */; };
+		ABF0001E000000000000AABB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAF0001E000000000000AABB /* Assets.xcassets */; };
 		DA565F3E2F9355E5005FC287 /* CryLens.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DA565F3D2F9355E5005FC287 /* CryLens.storekit */; };
 		DA565F3F2F9355E5005FC287 /* CryLens.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DA565F3D2F9355E5005FC287 /* CryLens.storekit */; };
 		GSBF0000000000000000001A /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = GSPRD000000000000000001A /* GoogleSignIn */; };
@@ -74,6 +77,9 @@
 		AAF00019000000000000AABB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AAF0001A000000000000AABB /* LegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalView.swift; sourceTree = "<group>"; };
 		AAF0001B000000000000AABB /* AppleSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInButton.swift; sourceTree = "<group>"; };
+		AAF0001C000000000000AABB /* CryLensLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryLensLogo.swift; sourceTree = "<group>"; };
+		AAF0001D000000000000AABB /* DebugLaunchOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLaunchOptions.swift; sourceTree = "<group>"; };
+		AAF0001E000000000000AABB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DA565F3D2F9355E5005FC287 /* CryLens.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = CryLens.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -115,6 +121,7 @@
 				AGP00005000000000000AABB /* Models */,
 				AGP00006000000000000AABB /* Views */,
 				AGP0000C000000000000AABB /* Extensions */,
+				AAF0001E000000000000AABB /* Assets.xcassets */,
 				AAF00012000000000000AABB /* Info.plist */,
 				AAF00013000000000000AABB /* CryLens.entitlements */,
 			);
@@ -126,6 +133,8 @@
 			children = (
 				AAF00001000000000000AABB /* CryLensApp.swift */,
 				AAF00002000000000000AABB /* AppState.swift */,
+				AAF0001C000000000000AABB /* CryLensLogo.swift */,
+				AAF0001D000000000000AABB /* DebugLaunchOptions.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -340,6 +349,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABF0001E000000000000AABB /* Assets.xcassets in Resources */,
 				DA565F3E2F9355E5005FC287 /* CryLens.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -389,6 +399,8 @@
 				ABF00019000000000000AABB /* SettingsView.swift in Sources */,
 				ABF0001A000000000000AABB /* LegalView.swift in Sources */,
 				ABF0001B000000000000AABB /* AppleSignInButton.swift in Sources */,
+				ABF0001C000000000000AABB /* CryLensLogo.swift in Sources */,
+				ABF0001D000000000000AABB /* DebugLaunchOptions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -425,7 +437,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.starklabs.crylens;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -457,7 +469,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.starklabs.crylens;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -475,7 +487,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.starklabs.crylens.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.9;
@@ -492,7 +504,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.starklabs.crylens.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.9;

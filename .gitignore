@@ -21,6 +21,11 @@ yarn-error.log*
 DerivedData/
 ios/DerivedData/
 ios/build/
+.codex-device-build/
+.codex-release/
+artifacts/*.xcarchive/
+artifacts/**/*.xcarchive/
+artifacts/builds/
 ios/CryLens/CryLens.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 *.xcuserstate

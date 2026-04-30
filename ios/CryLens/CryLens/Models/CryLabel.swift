@@ -7,13 +7,33 @@ enum CryLabel: String, CaseIterable, Codable {
     case burping
     case discomfort
 
+    var emoji: String {
+        switch self {
+        case .hungry:     return "🍼"
+        case .tired:      return "😴"
+        case .pain:       return "😢"
+        case .burping:    return "💨"
+        case .discomfort: return "😣"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .hungry:     return "fork.knife.circle.fill"
+        case .tired:      return "moon.zzz.fill"
+        case .pain:       return "heart.circle.fill"
+        case .burping:    return "wind.circle.fill"
+        case .discomfort: return "exclamationmark.triangle.fill"
+        }
+    }
+
     var displayName: String {
         switch self {
-        case .hungry:     return "🍼 Hungry"
-        case .tired:      return "😴 Tired"
-        case .pain:       return "😢 Pain"
-        case .burping:    return "💨 Needs Burping"
-        case .discomfort: return "😣 Discomfort"
+        case .hungry:     return "Hungry"
+        case .tired:      return "Tired"
+        case .pain:       return "Pain"
+        case .burping:    return "Needs Burping"
+        case .discomfort: return "Discomfort"
         }
     }
 

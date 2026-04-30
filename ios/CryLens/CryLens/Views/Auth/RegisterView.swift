@@ -18,11 +18,7 @@ struct RegisterView: View {
             VStack(spacing: 24) {
                 Spacer().frame(height: 20)
 
-                Image(systemName: "waveform.circle.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 70, height: 70)
-                    .foregroundStyle(coral)
+                CryLensLogo(size: 76)
 
                 VStack(spacing: 4) {
                     Text("Create Account")

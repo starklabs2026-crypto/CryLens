@@ -47,21 +47,37 @@ struct HistoryView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
 
-        let iso = ISO8601DateFormatter()
-        var groups: [String: [CryAnalysis]] = [:]
+        var groups: [Date: [CryAnalysis]] = [:]
 
         for a in analyses {
-            let date = iso.date(from: a.createdAt) ?? Date()
-            let key = formatter.string(from: date)
-            groups[key, default: []].append(a)
+            let date = AppDate.parse(a.createdAt) ?? Date()
+            let day = Calendar.current.startOfDay(for: date)
+            groups[day, default: []].append(a)
         }
 
         return groups
-            .map { DateGroup(key: $0.key, analyses: $0.value) }
-            .sorted { $0.key > $1.key }
+            .map { group in
+                DateGroup(
+                    date: group.key,
+                    key: formatter.string(from: group.key),
+                    analyses: group.value.sorted {
+                        (AppDate.parse($0.createdAt) ?? .distantPast) > (AppDate.parse($1.createdAt) ?? .distantPast)
+                    }
+                )
+            }
+            .sorted { $0.date > $1.date }
     }
 
     private func load() async {
+        #if DEBUG
+        if DebugLaunchOptions.isScreenshotMode {
+            analyses = DebugLaunchOptions.screenshotHistory
+            errorMessage = nil
+            isLoading = false
+            return
+        }
+        #endif
+
         isLoading = true
         do {
             analyses = try await APIService.shared.getHistory()
@@ -75,6 +91,7 @@ struct HistoryView: View {
 // MARK: - Supporting Types
 
 private struct DateGroup {
+    let date: Date
     let key: String
     let analyses: [CryAnalysis]
 }
@@ -84,8 +101,9 @@ private struct HistoryRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(labelEmoji)
+            Image(systemName: labelSymbol)
                 .font(.title2)
+                .foregroundStyle(labelColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(labelName)
                     .font(.headline)
@@ -101,16 +119,15 @@ private struct HistoryRowView: View {
     }
 
     private var cryLabel: CryLabel? { CryLabel(rawValue: analysis.label) }
-    private var labelEmoji: String { cryLabel?.displayName.prefix(2).description ?? "❓" }
+    private var labelSymbol: String { cryLabel?.symbolName ?? "questionmark.circle" }
     private var labelName: String { cryLabel?.displayName ?? analysis.label.capitalized }
     private var labelColor: Color { cryLabel?.color ?? .secondary }
 
     private var formattedTime: String {
-        let iso = ISO8601DateFormatter()
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
-        let date = iso.date(from: analysis.createdAt) ?? Date()
+        let date = AppDate.parse(analysis.createdAt) ?? Date()
         return formatter.string(from: date)
     }
 }

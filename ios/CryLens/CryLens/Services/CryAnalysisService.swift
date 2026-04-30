@@ -5,6 +5,7 @@ final class CryAnalysisService: ObservableObject {
     @Published var isAnalysing: Bool = false
     @Published var result: CryLabel?
     @Published var confidence: Double?
+    @Published var currentAnalysis: CryAnalysis?
     @Published var error: String?
 
     func analyse(audioURL: URL, babyId: String) async {
@@ -34,6 +35,7 @@ final class CryAnalysisService: ObservableObject {
 
             await MainActor.run {
                 if let label = CryLabel(rawValue: analysis.label) {
+                    self.currentAnalysis = analysis
                     self.result = label
                     self.confidence = analysis.confidence
                 } else {
@@ -50,10 +52,22 @@ final class CryAnalysisService: ObservableObject {
         await analyse(audioURL: audioURL, babyId: babyId)
     }
 
-    func reset() { result = nil; confidence = nil; error = nil; isAnalysing = false }
+    func reset() {
+        currentAnalysis = nil
+        result = nil
+        confidence = nil
+        error = nil
+        isAnalysing = false
+    }
 
     private func setState(analysing: Bool) async {
-        await MainActor.run { isAnalysing = analysing; result = nil; confidence = nil; error = nil }
+        await MainActor.run {
+            isAnalysing = analysing
+            currentAnalysis = nil
+            result = nil
+            confidence = nil
+            error = nil
+        }
     }
 
     private func audioDuration(url: URL) async -> Int {

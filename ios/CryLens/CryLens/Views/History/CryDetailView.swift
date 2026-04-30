@@ -8,9 +8,10 @@ struct CryDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
-                // Large emoji
-                Text(cryLabel?.displayName.prefix(2).description ?? "❓")
+                // Large icon
+                Image(systemName: cryLabel?.symbolName ?? "questionmark.circle")
                     .font(.system(size: 80))
+                    .foregroundStyle(cryLabel?.color ?? .secondary)
 
                 // Label
                 Text(cryLabel?.displayName ?? analysis.label.capitalized)
@@ -88,11 +89,10 @@ struct CryDetailView: View {
     }
 
     private var formattedDate: String {
-        let iso = ISO8601DateFormatter()
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        let date = iso.date(from: analysis.createdAt) ?? Date()
+        let date = AppDate.parse(analysis.createdAt) ?? Date()
         return formatter.string(from: date)
     }
 }
