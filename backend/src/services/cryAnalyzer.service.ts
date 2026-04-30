@@ -18,7 +18,18 @@ export class NonBabyCryAudioError extends Error {
 
 const VALID_LABELS: CryLabelStr[] = ['hungry', 'tired', 'pain', 'burping', 'discomfort'];
 const DIRECT_AUDIO_FORMATS = new Set(['wav', 'mp3']);
+const DEFAULT_ANALYSIS_DEADLINE_MS = 5_000;
+const RESPONSE_SAFETY_BUFFER_MS = 450;
+const MIN_AI_ATTEMPT_MS = 900;
 type CueScores = Record<CryLabelStr, number>;
+type TimedOpenAIOptions = {
+  timeoutMs: number;
+  signal?: AbortSignal;
+};
+type QuickAudioFeatureOutcome =
+  | { kind: 'analysis'; result: CryAnalysisResult }
+  | { kind: 'reject'; reason: string }
+  | null;
 export type ClassificationPayload = {
   is_baby_cry?: boolean;
   isBabyCry?: boolean;
@@ -33,6 +44,41 @@ const LOW_SIGNAL_PATTERNS = [
   /^\[?(baby )?cry(?:ing)?\]?$/i,
   /^\[?(baby )?wail(?:ing)?\]?$/i,
   /^\[?(baby )?fuss(?:ing)?\]?$/i,
+];
+
+const NON_BABY_TRANSCRIPT_PATTERNS = [
+  /\badult speech\b/i,
+  /\bolder child\b/i,
+  /\bchild(?:ren)? (?:talking|speaking|speech)\b/i,
+  /\b(?:man|woman|person|people) (?:talking|speaking|singing)\b/i,
+  /\bmusic\b/i,
+  /\bsong\b/i,
+  /\btv\b/i,
+  /\btelevision\b/i,
+  /\bpodcast\b/i,
+  /\bdog\b/i,
+  /\bbark(?:ing)?\b/i,
+  /\bcat\b/i,
+  /\bmeow(?:ing)?\b/i,
+  /\bpet\b/i,
+  /\bsilence\b/i,
+  /\bwhite noise\b/i,
+  /\bbackground noise\b/i,
+  /\bmechanical\b/i,
+  /\bnot (?:a )?(?:baby|infant) cry\b/i,
+  /\bno (?:baby|infant) cry\b/i,
+];
+
+const BABY_CRY_TRANSCRIPT_PATTERNS = [
+  /\bbaby\b/i,
+  /\binfant\b/i,
+  /\bnewborn\b/i,
+  /\bcry(?:ing)?\b/i,
+  /\bwail(?:ing)?\b/i,
+  /\bfuss(?:ing|y)?\b/i,
+  /\bwhimper(?:ing)?\b/i,
+  /\bscream(?:ing)?\b/i,
+  /\bhiccup(?:ing)?\b/i,
 ];
 
 const LABEL_NORMALIZERS: Array<{ label: CryLabelStr; patterns: RegExp[] }> = [
@@ -149,10 +195,60 @@ Return ONLY a JSON object - no markdown, no explanation outside the JSON:
   "rejection_reason": "<only when is_baby_cry is false>"
 }`;
 
-function getOpenAIClient(): OpenAI {
+class AnalysisTimeoutError extends Error {
+  constructor(message = 'AI analysis timed out') {
+    super(message);
+    this.name = 'AnalysisTimeoutError';
+  }
+}
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function analysisDeadlineMs(): number {
+  return parsePositiveInt(process.env.AI_ANALYSIS_TIMEOUT_MS, DEFAULT_ANALYSIS_DEADLINE_MS);
+}
+
+function remainingBudgetMs(startedAt: number, deadlineMs: number): number {
+  return Math.max(0, deadlineMs - (Date.now() - startedAt) - RESPONSE_SAFETY_BUFFER_MS);
+}
+
+async function runWithTimeout<T>(
+  label: string,
+  timeoutMs: number,
+  run: (signal: AbortSignal, timeoutMs: number) => Promise<T>,
+): Promise<T> {
+  if (timeoutMs < MIN_AI_ATTEMPT_MS) {
+    throw new AnalysisTimeoutError(`${label} skipped because only ${timeoutMs}ms remained`);
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await run(controller.signal, timeoutMs);
+  } catch (err: unknown) {
+    if (controller.signal.aborted) {
+      throw new AnalysisTimeoutError(`${label} exceeded ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isTimeoutLikeError(err: unknown): boolean {
+  if (err instanceof AnalysisTimeoutError) return true;
+  const message = err instanceof Error ? `${err.name} ${err.message}` : String(err);
+  return /timeout|timed out|aborted|abort/i.test(message);
+}
+
+function getOpenAIClient(timeoutMs = DEFAULT_ANALYSIS_DEADLINE_MS): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error('OPENAI_API_KEY must be set');
-  return new OpenAI({ apiKey });
+  return new OpenAI({ apiKey, maxRetries: 0, timeout: timeoutMs });
 }
 
 export function normalizeCryLabel(raw: string | null | undefined): CryLabelStr | null {
@@ -181,6 +277,15 @@ export function isLowSignalTranscript(transcript: string): boolean {
     .replace(/\s+/g, ' ');
 
   return LOW_SIGNAL_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+export function transcriptIndicatesNonBabyAudio(transcript: string): boolean {
+  const normalized = transcript.trim();
+  if (!normalized) return true;
+
+  const hasBabyCryCue = BABY_CRY_TRANSCRIPT_PATTERNS.some((pattern) => pattern.test(normalized));
+  const hasNonBabyCue = NON_BABY_TRANSCRIPT_PATTERNS.some((pattern) => pattern.test(normalized));
+  return hasNonBabyCue && !hasBabyCryCue;
 }
 
 export function scoreCryTranscript(transcript: string): CueScores {
@@ -256,8 +361,211 @@ export function reconcileCryClassification(
   };
 }
 
+export function classifyTranscriptLocally(transcript: string, durationSec: number): CryAnalysisResult {
+  if (transcriptIndicatesNonBabyAudio(transcript)) {
+    throw new NonBabyCryAudioError('The audio appears to contain non-baby audio rather than a clear baby cry.');
+  }
+
+  const heuristicScores = scoreCryTranscript(transcript);
+  const heuristicLabel = pickHeuristicLabel(heuristicScores);
+  const lowSignal = isLowSignalTranscript(transcript);
+  const labelFromText = normalizeCryLabel(transcript);
+  const label = heuristicLabel ?? labelFromText ?? (lowSignal ? 'discomfort' : null);
+  const confidence = heuristicLabel ? 0.72 : lowSignal ? 0.52 : 0.61;
+  const notes = heuristicLabel
+    ? `Fast analysis used acoustic transcript cues associated with ${heuristicLabel}. Try the likely soothing step and track whether the pattern repeats.`
+    : `Fast analysis completed in the ${durationSec}s recording window, but the cry had limited acoustic detail. Treat this as a low-confidence estimate.`;
+
+  return reconcileCryClassification(transcript, {
+    label,
+    confidence,
+    notes,
+  });
+}
+
 export function shouldUseDirectAudioClassification(ext: string): boolean {
   return DIRECT_AUDIO_FORMATS.has(ext.trim().toLowerCase());
+}
+
+function parsePcmWav(audioBuffer: Buffer): { sampleRate: number; samples: Float32Array } | null {
+  if (audioBuffer.length < 44) return null;
+  if (audioBuffer.toString('ascii', 0, 4) !== 'RIFF' || audioBuffer.toString('ascii', 8, 12) !== 'WAVE') {
+    return null;
+  }
+
+  let offset = 12;
+  let audioFormat = 0;
+  let channels = 0;
+  let sampleRate = 0;
+  let bitsPerSample = 0;
+  let dataOffset = -1;
+  let dataSize = 0;
+
+  while (offset + 8 <= audioBuffer.length) {
+    const chunkId = audioBuffer.toString('ascii', offset, offset + 4);
+    const chunkSize = audioBuffer.readUInt32LE(offset + 4);
+    const chunkDataOffset = offset + 8;
+
+    if (chunkId === 'fmt ' && chunkSize >= 16 && chunkDataOffset + 16 <= audioBuffer.length) {
+      audioFormat = audioBuffer.readUInt16LE(chunkDataOffset);
+      channels = audioBuffer.readUInt16LE(chunkDataOffset + 2);
+      sampleRate = audioBuffer.readUInt32LE(chunkDataOffset + 4);
+      bitsPerSample = audioBuffer.readUInt16LE(chunkDataOffset + 14);
+    } else if (chunkId === 'data') {
+      dataOffset = chunkDataOffset;
+      dataSize = Math.min(chunkSize, audioBuffer.length - chunkDataOffset);
+      break;
+    }
+
+    offset = chunkDataOffset + chunkSize + (chunkSize % 2);
+  }
+
+  if (audioFormat !== 1 || channels <= 0 || sampleRate <= 0 || bitsPerSample !== 16 || dataOffset < 0) {
+    return null;
+  }
+
+  const frameCount = Math.floor(dataSize / (channels * 2));
+  if (frameCount <= 0) return null;
+
+  const samples = new Float32Array(frameCount);
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    let sum = 0;
+    for (let channel = 0; channel < channels; channel += 1) {
+      const sampleOffset = dataOffset + (frame * channels + channel) * 2;
+      sum += audioBuffer.readInt16LE(sampleOffset) / 32768;
+    }
+    samples[frame] = sum / channels;
+  }
+
+  return { sampleRate, samples };
+}
+
+function standardDeviation(values: number[]): number {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function buildQuickFallbackResult(label: CryLabelStr, confidence: number, reason: string): CryAnalysisResult {
+  return {
+    label,
+    confidence: Math.min(0.68, Math.max(0.45, confidence)),
+    notes: `Fast estimate: ${reason} This was returned because the full AI pass was close to the latency limit.`,
+  };
+}
+
+export function quickAnalyzeAudioFeatures(
+  audioBuffer: Buffer,
+  ext: string,
+  durationSec: number,
+): QuickAudioFeatureOutcome {
+  if (ext.trim().toLowerCase() !== 'wav') return null;
+
+  const wav = parsePcmWav(audioBuffer);
+  if (!wav) return null;
+
+  const windowSize = Math.max(1, Math.floor(wav.sampleRate * 0.25));
+  const rmsWindows: number[] = [];
+  const zcrWindows: number[] = [];
+
+  for (let start = 0; start < wav.samples.length; start += windowSize) {
+    const end = Math.min(wav.samples.length, start + windowSize);
+    let sumSquares = 0;
+    let zeroCrossings = 0;
+    let previous = wav.samples[start] ?? 0;
+
+    for (let index = start; index < end; index += 1) {
+      const sample = wav.samples[index] ?? 0;
+      sumSquares += sample * sample;
+      if ((previous < 0 && sample >= 0) || (previous >= 0 && sample < 0)) {
+        zeroCrossings += 1;
+      }
+      previous = sample;
+    }
+
+    const length = Math.max(1, end - start);
+    rmsWindows.push(Math.sqrt(sumSquares / length));
+    zcrWindows.push(zeroCrossings / length);
+  }
+
+  const activeThreshold = 0.028;
+  const active = rmsWindows.map((value) => value >= activeThreshold);
+  const activeCount = active.filter(Boolean).length;
+  const activeRatio = activeCount / Math.max(1, active.length);
+  const peakRms = Math.max(...rmsWindows, 0);
+  const avgZcr =
+    zcrWindows.filter((_, index) => active[index]).reduce((sum, value) => sum + value, 0) / Math.max(1, activeCount);
+  const dynamicRange = standardDeviation(rmsWindows);
+
+  if (activeRatio < 0.06 || peakRms < 0.018) {
+    return {
+      kind: 'reject',
+      reason: 'The recording is too quiet or appears to contain silence rather than a clear baby cry.',
+    };
+  }
+
+  const runs: number[] = [];
+  const gaps: number[] = [];
+  let currentRun = 0;
+  let currentGap = 0;
+  for (const isActive of active) {
+    if (isActive) {
+      if (currentGap > 0) {
+        gaps.push(currentGap);
+        currentGap = 0;
+      }
+      currentRun += 1;
+    } else {
+      if (currentRun > 0) {
+        runs.push(currentRun);
+        currentRun = 0;
+      }
+      currentGap += 1;
+    }
+  }
+  if (currentRun > 0) runs.push(currentRun);
+  if (currentGap > 0) gaps.push(currentGap);
+
+  const burstCount = runs.length;
+  const avgRunSeconds =
+    (runs.reduce((sum, value) => sum + value, 0) / Math.max(1, runs.length)) * 0.25;
+  const avgGapSeconds =
+    (gaps.reduce((sum, value) => sum + value, 0) / Math.max(1, gaps.length)) * 0.25;
+  const gapRegularity = standardDeviation(gaps) <= 1.8;
+
+  if (peakRms > 0.22 && avgZcr > 0.085 && activeRatio > 0.35) {
+    return {
+      kind: 'analysis',
+      result: buildQuickFallbackResult('pain', 0.62, 'the cry has high energy and a sharper pitch profile.'),
+    };
+  }
+
+  if (burstCount >= 3 && avgRunSeconds <= 1.2 && avgGapSeconds >= 0.18) {
+    return {
+      kind: 'analysis',
+      result: buildQuickFallbackResult('burping', 0.6, 'the sound arrives in short bursts with pauses between them.'),
+    };
+  }
+
+  if (burstCount >= 3 && gapRegularity && activeRatio >= 0.25 && activeRatio <= 0.7) {
+    return {
+      kind: 'analysis',
+      result: buildQuickFallbackResult('hungry', 0.58, 'the cry has a repeated rhythm with fairly regular gaps.'),
+    };
+  }
+
+  if (activeRatio < 0.32 && peakRms < 0.16 && dynamicRange > 0.025) {
+    return {
+      kind: 'analysis',
+      result: buildQuickFallbackResult('tired', 0.56, 'the cry is lower energy and intermittent.'),
+    };
+  }
+
+  return {
+    kind: 'analysis',
+    result: buildQuickFallbackResult('discomfort', 0.52, 'the cry is persistent without stronger hungry, pain, or burping cues.'),
+  };
 }
 
 function parseClassificationPayload(raw: string): ClassificationPayload {
@@ -309,8 +617,8 @@ function getAssistantText(
     .trim();
 }
 
-async function transcribeWithWhisper(audioBuffer: Buffer, ext: string): Promise<string> {
-  const openai = getOpenAIClient();
+async function transcribeWithWhisper(audioBuffer: Buffer, ext: string, options: TimedOpenAIOptions): Promise<string> {
+  const openai = getOpenAIClient(options.timeoutMs);
   const mimeMap: Record<string, string> = {
     wav: 'audio/wav',
     m4a: 'audio/mp4',
@@ -322,73 +630,76 @@ async function transcribeWithWhisper(audioBuffer: Buffer, ext: string): Promise<
   };
   const mime = mimeMap[ext] ?? 'audio/wav';
   const filename = `cry.${ext || 'wav'}`;
-  const models = [
-    ...new Set(
-      [process.env.OPENAI_TRANSCRIBE_MODEL?.trim(), 'gpt-4o-mini-transcribe', 'whisper-1'].filter(
-        (value): value is string => Boolean(value),
-      ),
-    ),
-  ];
+  const model = process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || 'gpt-4o-mini-transcribe';
+  const file = new File([audioBuffer], filename, { type: mime });
+  const transcription = await openai.audio.transcriptions.create(
+    {
+      model,
+      file,
+      response_format: 'verbose_json',
+      prompt: 'Describe the uploaded audio literally. If it contains a baby crying, use cue words like [baby crying], [rhythmic], [whimpering], [hiccuping], [high-pitched screaming], [intermittent], [continuous], [nasal], [fading], or [escalating]. If it is speech, music, silence, pets, TV, or other non-baby-cry audio, describe that instead. Avoid generic outputs when more acoustic detail is present.',
+    },
+    {
+      signal: options.signal,
+      timeout: options.timeoutMs,
+      maxRetries: 0,
+    },
+  );
 
-  for (const model of models) {
-    try {
-      const file = new File([audioBuffer], filename, { type: mime });
-      const transcription = await openai.audio.transcriptions.create({
-        model,
-        file,
-        response_format: 'verbose_json',
-        prompt: 'Describe the uploaded audio literally. If it contains a baby crying, use cue words like [baby crying], [rhythmic], [whimpering], [hiccuping], [high-pitched screaming], [intermittent], [continuous], [nasal], [fading], or [escalating]. If it is speech, music, silence, pets, TV, or other non-baby-cry audio, describe that instead. Avoid generic outputs when more acoustic detail is present.',
-      });
+  const verbose = transcription as unknown as {
+    text?: string;
+    segments?: Array<{ text?: string }>;
+  };
+  const segmentText = (verbose.segments ?? [])
+    .map((segment) => segment.text?.trim())
+    .filter((value): value is string => Boolean(value));
+  const text = [verbose.text?.trim(), ...segmentText]
+    .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
+    .join(' | ')
+    .trim();
 
-      const verbose = transcription as unknown as {
-        text?: string;
-        segments?: Array<{ text?: string }>;
-      };
-      const segmentText = (verbose.segments ?? [])
-        .map((segment) => segment.text?.trim())
-        .filter((value): value is string => Boolean(value));
-      const text = [verbose.text?.trim(), ...segmentText]
-        .filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index)
-        .join(' | ')
-        .trim();
-
-      console.log(`[CryAnalyzer] ${model} transcript: "${text}"`);
-      return text || '[baby crying]';
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[CryAnalyzer] ${model} transcription failed: ${msg}`);
-    }
-  }
-
-  return '[baby crying]';
+  console.log(`[CryAnalyzer] ${model} transcript: "${text}"`);
+  return text || '[baby crying]';
 }
 
-async function classifyAudioDirectly(audioBuffer: Buffer, format: 'wav' | 'mp3', durationSec: number): Promise<CryAnalysisResult> {
-  const openai = getOpenAIClient();
-  const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_AUDIO_MODEL?.trim() || 'gpt-audio',
-    messages: [
-      { role: 'system', content: DIRECT_AUDIO_CLASSIFY_PROMPT },
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: `This is a ${durationSec}-second user-submitted audio recording. First verify it contains a real baby crying. If it does, classify the dominant likely cause of the cry.`,
-          },
-          {
-            type: 'input_audio',
-            input_audio: {
-              data: audioBuffer.toString('base64'),
-              format,
+async function classifyAudioDirectly(
+  audioBuffer: Buffer,
+  format: 'wav' | 'mp3',
+  durationSec: number,
+  options: TimedOpenAIOptions,
+): Promise<CryAnalysisResult> {
+  const openai = getOpenAIClient(options.timeoutMs);
+  const completion = await openai.chat.completions.create(
+    {
+      model: process.env.OPENAI_AUDIO_MODEL?.trim() || 'gpt-audio',
+      messages: [
+        { role: 'system', content: DIRECT_AUDIO_CLASSIFY_PROMPT },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `This is a ${durationSec}-second user-submitted audio recording. First verify it contains a real baby crying. If it does, classify the dominant likely cause of the cry.`,
             },
-          },
-        ],
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 220,
-  });
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: audioBuffer.toString('base64'),
+                format,
+              },
+            },
+          ],
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 150,
+    },
+    {
+      signal: options.signal,
+      timeout: options.timeoutMs,
+      maxRetries: 0,
+    },
+  );
 
   const raw = getAssistantText(completion.choices[0]?.message?.content);
   if (!raw) {
@@ -410,8 +721,12 @@ async function classifyAudioDirectly(audioBuffer: Buffer, format: 'wav' | 'mp3',
   };
 }
 
-async function classifyTranscriptWithOpenAI(transcript: string, durationSec: number): Promise<CryAnalysisResult> {
-  const openai = getOpenAIClient();
+async function classifyTranscriptWithOpenAI(
+  transcript: string,
+  durationSec: number,
+  options: TimedOpenAIOptions,
+): Promise<CryAnalysisResult> {
+  const openai = getOpenAIClient(options.timeoutMs);
   const heuristicScores = scoreCryTranscript(transcript);
   const userMessage = `Whisper transcription of a ${durationSec}-second user-submitted audio recording: "${transcript}"
 
@@ -424,15 +739,22 @@ Heuristic acoustic cue scores from the transcript:
 
 First verify the transcript indicates a real baby crying. If it does, classify why this baby is crying.`;
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: TRANSCRIPT_CLASSIFY_PROMPT },
-      { role: 'user', content: userMessage },
-    ],
-    temperature: 0.3,
-    max_tokens: 200,
-  });
+  const completion = await openai.chat.completions.create(
+    {
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: TRANSCRIPT_CLASSIFY_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.3,
+      max_tokens: 160,
+    },
+    {
+      signal: options.signal,
+      timeout: options.timeoutMs,
+      maxRetries: 0,
+    },
+  );
 
   const raw = getAssistantText(completion.choices[0]?.message?.content) ?? '';
   const parsed = parseClassificationPayload(raw);
@@ -450,7 +772,44 @@ First verify the transcript indicates a real baby crying. If it does, classify w
   });
 }
 
+function fallbackAnalysisFromQuickOutcome(
+  quickOutcome: QuickAudioFeatureOutcome,
+  ext: string,
+  durationSec: number,
+): CryAnalysisResult {
+  if (quickOutcome?.kind === 'reject') {
+    throw new NonBabyCryAudioError(quickOutcome.reason);
+  }
+
+  if (quickOutcome?.kind === 'analysis') {
+    return quickOutcome.result;
+  }
+
+  return {
+    label: 'discomfort',
+    confidence: 0.45,
+    notes:
+      `Fast estimate: the AI model did not finish within the latency target and the .${ext || 'audio'} file could not be inspected locally. ` +
+      `Please retry with a clear ${Math.max(10, Math.min(35, durationSec))}-second baby cry recording for a more precise result.`,
+  };
+}
+
+async function downloadAudioWithBudget(signedUrl: string, startedAt: number, deadlineMs: number): Promise<Buffer> {
+  return runWithTimeout('audio download', remainingBudgetMs(startedAt, deadlineMs), async (signal) => {
+    const res = await fetch(signedUrl, { signal });
+    if (!res.ok) {
+      throw new Error(`Failed to download audio: ${res.status}`);
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  });
+}
+
 export async function analyzeCryAudio(audioStoragePath: string, durationSec?: number): Promise<CryAnalysisResult> {
+  const startedAt = Date.now();
+  const deadlineMs = analysisDeadlineMs();
+  const safeDurationSec = durationSec ?? 5;
+
   const { data: signedData, error: signedError } = await getSupabase().storage
     .from(AUDIO_BUCKET)
     .createSignedUrl(audioStoragePath, 120);
@@ -459,24 +818,52 @@ export async function analyzeCryAudio(audioStoragePath: string, durationSec?: nu
     throw new Error('Failed to create signed URL for audio file');
   }
 
-  const response = await fetch(signedData.signedUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to download audio: ${response.status}`);
+  const audioBuffer = await downloadAudioWithBudget(signedData.signedUrl, startedAt, deadlineMs);
+  const ext = audioStoragePath.split('.').pop()?.toLowerCase() ?? '';
+  const quickOutcome = quickAnalyzeAudioFeatures(audioBuffer, ext, safeDurationSec);
+  if (quickOutcome?.kind === 'reject') {
+    throw new NonBabyCryAudioError(quickOutcome.reason);
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const audioBuffer = Buffer.from(arrayBuffer);
-  const ext = audioStoragePath.split('.').pop()?.toLowerCase() ?? '';
   if (shouldUseDirectAudioClassification(ext)) {
     try {
       console.log(`[CryAnalyzer] Using direct audio classification for .${ext} input`);
-      return await classifyAudioDirectly(audioBuffer, ext as 'wav' | 'mp3', durationSec ?? 5);
+      return await runWithTimeout('direct audio classification', remainingBudgetMs(startedAt, deadlineMs), (signal, timeoutMs) =>
+        classifyAudioDirectly(audioBuffer, ext as 'wav' | 'mp3', safeDurationSec, { signal, timeoutMs }),
+      );
     } catch (err: unknown) {
+      if (err instanceof NonBabyCryAudioError) throw err;
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[CryAnalyzer] Direct audio classification failed, falling back to transcription: ${msg}`);
+      console.warn(`[CryAnalyzer] Direct audio classification failed${isTimeoutLikeError(err) ? ' by timeout' : ''}: ${msg}`);
+      if (!isTimeoutLikeError(err)) {
+        try {
+          const transcript = await runWithTimeout(
+            'audio transcription fallback',
+            remainingBudgetMs(startedAt, deadlineMs),
+            (signal, timeoutMs) => transcribeWithWhisper(audioBuffer, ext, { signal, timeoutMs }),
+          );
+          return classifyTranscriptLocally(transcript, safeDurationSec);
+        } catch (fallbackErr: unknown) {
+          if (fallbackErr instanceof NonBabyCryAudioError) throw fallbackErr;
+          const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+          console.warn(
+            `[CryAnalyzer] Transcription fallback failed${isTimeoutLikeError(fallbackErr) ? ' by timeout' : ''}: ${fallbackMsg}`,
+          );
+        }
+      }
+      return fallbackAnalysisFromQuickOutcome(quickOutcome, ext, safeDurationSec);
     }
   }
 
-  const transcript = await transcribeWithWhisper(audioBuffer, ext);
-  return classifyTranscriptWithOpenAI(transcript, durationSec ?? 5);
+  try {
+    const transcript = await runWithTimeout('audio transcription', remainingBudgetMs(startedAt, deadlineMs), (signal, timeoutMs) =>
+      transcribeWithWhisper(audioBuffer, ext, { signal, timeoutMs }),
+    );
+    return classifyTranscriptLocally(transcript, safeDurationSec);
+  } catch (err: unknown) {
+    if (err instanceof NonBabyCryAudioError) throw err;
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[CryAnalyzer] Transcription analysis failed${isTimeoutLikeError(err) ? ' by timeout' : ''}: ${msg}`);
+    return fallbackAnalysisFromQuickOutcome(quickOutcome, ext, safeDurationSec);
+  }
 }
