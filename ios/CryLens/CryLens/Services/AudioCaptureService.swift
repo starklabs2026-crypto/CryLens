@@ -2,6 +2,9 @@ import Foundation
 import AVFoundation
 
 final class AudioCaptureService: ObservableObject {
+    static let minimumDurationSeconds = 10
+    static let maximumDurationSeconds = 35
+
     @Published var isRecording: Bool = false
     @Published var audioLevel: Float = 0.0
     @Published var durationSeconds: Int = 0

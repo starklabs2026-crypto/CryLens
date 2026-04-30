@@ -14,7 +14,10 @@ enum APIError: LocalizedError {
         case .noData:                return "No data was returned from the server."
         case .unauthorized:          return "You are not authorised. Please sign in again."
         case .noBabyCryDetected(let msg):
-            return msg.isEmpty ? "No baby cry detected. Please record or import a clear baby cry." : msg
+            if msg.isEmpty {
+                return "We couldn't detect a baby cry. Please try again in a quieter place with a clear recording."
+            }
+            return "\(msg) Please try again with \(AudioCaptureService.minimumDurationSeconds)-\(AudioCaptureService.maximumDurationSeconds) seconds of clear baby crying."
         case .serverError(let msg):  return "Server error: \(msg)"
         case .decodingError:         return "Failed to decode the server response."
         }

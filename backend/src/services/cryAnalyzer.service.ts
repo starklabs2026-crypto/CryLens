@@ -374,7 +374,7 @@ async function classifyAudioDirectly(audioBuffer: Buffer, format: 'wav' | 'mp3',
         content: [
           {
             type: 'text',
-            text: `This is a ${durationSec}-second infant cry recording. Listen to the raw audio and classify the dominant cause of the cry.`,
+            text: `This is a ${durationSec}-second user-submitted audio recording. First verify it contains a real baby crying. If it does, classify the dominant likely cause of the cry.`,
           },
           {
             type: 'input_audio',
@@ -413,7 +413,7 @@ async function classifyAudioDirectly(audioBuffer: Buffer, format: 'wav' | 'mp3',
 async function classifyTranscriptWithOpenAI(transcript: string, durationSec: number): Promise<CryAnalysisResult> {
   const openai = getOpenAIClient();
   const heuristicScores = scoreCryTranscript(transcript);
-  const userMessage = `Whisper transcription of a ${durationSec}-second baby cry recording: "${transcript}"
+  const userMessage = `Whisper transcription of a ${durationSec}-second user-submitted audio recording: "${transcript}"
 
 Heuristic acoustic cue scores from the transcript:
 - hungry: ${heuristicScores.hungry.toFixed(1)}
@@ -422,7 +422,7 @@ Heuristic acoustic cue scores from the transcript:
 - burping: ${heuristicScores.burping.toFixed(1)}
 - discomfort: ${heuristicScores.discomfort.toFixed(1)}
 
-Classify why this baby is crying.`;
+First verify the transcript indicates a real baby crying. If it does, classify why this baby is crying.`;
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
